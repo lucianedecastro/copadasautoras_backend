@@ -2,12 +2,14 @@ package br.com.copadasautoras.service;
 
 import br.com.copadasautoras.dto.AdminDashboardDTO;
 import br.com.copadasautoras.dto.CreateUsuarioRequest;
+import br.com.copadasautoras.dto.UpdateUsuarioAdminRequest;
 import br.com.copadasautoras.dto.UsuarioAdminResponseDTO;
 import br.com.copadasautoras.entity.*;
 import br.com.copadasautoras.repository.CompeticaoRepository;
 import br.com.copadasautoras.repository.ConfrontoRepository;
 import br.com.copadasautoras.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,7 +66,8 @@ public class AdminService {
     }
 
     @Transactional(readOnly = true)
-    public List<UsuarioAdminResponseDTO> listarUsuariosAdministrativos() {
+    public List<UsuarioAdminResponseDTO>
+    listarUsuariosAdministrativos() {
 
         return usuarioRepository.findAll()
                 .stream()
@@ -81,6 +84,166 @@ public class AdminService {
                         )
                 )
                 .toList();
+    }
+
+    // =========================
+    // 🔍 BUSCAR USUÁRIO POR ID
+    // =========================
+
+    @Transactional(readOnly = true)
+    public UsuarioAdminResponseDTO
+    buscarUsuarioAdministrativo(Long id) {
+
+        Usuario usuario = usuarioRepository
+                .findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Usuário não encontrado"
+                        )
+                );
+
+        if (usuario.getRole() != Role.ADMIN
+                && usuario.getRole() != Role.BANCA) {
+
+            throw new RuntimeException(
+                    "Usuário não é administrativo"
+            );
+        }
+
+        return new UsuarioAdminResponseDTO(
+                usuario.getId(),
+                usuario.getNome(),
+                usuario.getEmail(),
+                usuario.getRole()
+        );
+    }
+
+    // =========================
+    // ✏️ ATUALIZAR USUÁRIO
+    // =========================
+
+    @Transactional
+    public void atualizarUsuarioAdministrativo(
+            Long id,
+            UpdateUsuarioAdminRequest request
+    ) {
+
+        Usuario usuario = usuarioRepository
+                .findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Usuário não encontrado"
+                        )
+                );
+
+        if (usuario.getRole() != Role.ADMIN
+                && usuario.getRole() != Role.BANCA) {
+
+            throw new RuntimeException(
+                    "Usuário não é administrativo"
+            );
+        }
+
+        boolean emailEmUso = usuarioRepository
+                .findByEmail(request.email())
+                .filter(u -> !u.getId().equals(id))
+                .isPresent();
+
+        if (emailEmUso) {
+            throw new RuntimeException(
+                    "Já existe um usuário com este email."
+            );
+        }
+
+        // Segurança:
+        // AUTORA nunca pode ser editada aqui
+        if (request.role() == Role.AUTORA) {
+            throw new RuntimeException(
+                    "AUTORA deve utilizar o fluxo público."
+            );
+        }
+
+        usuario.setNome(
+                request.nome()
+        );
+
+        usuario.setEmail(
+                request.email()
+        );
+
+        usuario.setRole(
+                request.role()
+        );
+
+        // senha opcional
+        if (request.senha() != null
+                && !request.senha().isBlank()) {
+
+            usuario.setSenha(
+                    passwordEncoder.encode(
+                            request.senha()
+                    )
+            );
+        }
+
+        usuarioRepository.save(usuario);
+    }
+
+    // =========================
+    // 🗑️ DELETAR USUÁRIO
+    // =========================
+
+    @Transactional
+    public void deletarUsuarioAdministrativo(
+            Long id,
+            Authentication authentication
+    ) {
+
+        Usuario usuario = usuarioRepository
+                .findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Usuário não encontrado"
+                        )
+                );
+
+        if (usuario.getRole() != Role.ADMIN
+                && usuario.getRole() != Role.BANCA) {
+
+            throw new RuntimeException(
+                    "Usuário não é administrativo"
+            );
+        }
+
+        // impede auto exclusão
+        if (usuario.getEmail()
+                .equals(authentication.getName())) {
+
+            throw new RuntimeException(
+                    "Você não pode excluir seu próprio usuário"
+            );
+        }
+
+        // impede apagar último admin
+        if (usuario.getRole() == Role.ADMIN) {
+
+            long totalAdmins =
+                    usuarioRepository.findAll()
+                            .stream()
+                            .filter(u ->
+                                    u.getRole()
+                                            == Role.ADMIN
+                            )
+                            .count();
+
+            if (totalAdmins <= 1) {
+                throw new RuntimeException(
+                        "Não é possível excluir o último ADMIN do sistema"
+                );
+            }
+        }
+
+        usuarioRepository.delete(usuario);
     }
 
     // =========================
@@ -255,4 +418,3 @@ public class AdminService {
                 );
     }
 }
-

@@ -2,6 +2,7 @@ package br.com.copadasautoras.controller;
 
 import br.com.copadasautoras.dto.AdminDashboardDTO;
 import br.com.copadasautoras.dto.CreateUsuarioRequest;
+import br.com.copadasautoras.dto.UpdateUsuarioAdminRequest;
 import br.com.copadasautoras.dto.UsuarioAdminResponseDTO;
 import br.com.copadasautoras.service.AdminService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -60,6 +62,76 @@ public class AdminController {
 
         return ResponseEntity.ok(
                 adminService.listarUsuariosAdministrativos()
+        );
+    }
+
+    @Operation(
+            summary = "Buscar usuário administrativo por ID",
+            description = """
+                    Retorna um usuário com perfil ADMIN ou BANCA.
+                    Endpoint restrito a ADMIN.
+                    """
+    )
+    @GetMapping("/usuarios/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UsuarioAdminResponseDTO>
+    buscarUsuarioAdministrativo(
+            @PathVariable Long id
+    ) {
+
+        return ResponseEntity.ok(
+                adminService.buscarUsuarioAdministrativo(id)
+        );
+    }
+
+    @Operation(
+            summary = "Atualizar usuário administrativo",
+            description = """
+                    Atualiza dados de um ADMIN ou BANCA.
+                    Endpoint restrito a ADMIN.
+                    """
+    )
+    @PutMapping("/usuarios/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String>
+    atualizarUsuarioAdministrativo(
+            @PathVariable Long id,
+            @Valid @RequestBody
+            UpdateUsuarioAdminRequest request
+    ) {
+
+        adminService.atualizarUsuarioAdministrativo(
+                id,
+                request
+        );
+
+        return ResponseEntity.ok(
+                "Usuário atualizado com sucesso."
+        );
+    }
+
+    @Operation(
+            summary = "Excluir usuário administrativo",
+            description = """
+                    Exclui um usuário ADMIN ou BANCA.
+                    Endpoint restrito a ADMIN.
+                    """
+    )
+    @DeleteMapping("/usuarios/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String>
+    deletarUsuarioAdministrativo(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+
+        adminService.deletarUsuarioAdministrativo(
+                id,
+                authentication
+        );
+
+        return ResponseEntity.ok(
+                "Usuário removido com sucesso."
         );
     }
 
