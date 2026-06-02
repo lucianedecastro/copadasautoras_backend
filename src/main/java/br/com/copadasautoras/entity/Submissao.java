@@ -53,6 +53,14 @@ public class Submissao {
     @JoinColumn(name = "evento_id")
     private Evento evento;
 
+    /**
+     * Grupo da competição (FASE_32).
+     * Uma submissão pertence a apenas um grupo.
+     */
+    @ManyToOne
+    @JoinColumn(name = "grupo_id")
+    private GrupoCompeticao grupo;
+
     @Enumerated(EnumType.STRING)
     private StatusSubmissao status;
 
@@ -75,3 +83,4 @@ public class Submissao {
         }
     }
 }
+

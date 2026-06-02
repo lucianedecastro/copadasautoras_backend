@@ -225,149 +225,266 @@ public class SubmissaoService {
     @Transactional
     public void gerarConfrontos(FaseCompeticao fase) {
 
+        if (fase == FaseCompeticao.FASE_32) {
+            throw new RuntimeException(
+                    "A FASE_32 utiliza grupos e não confrontos."
+            );
+        }
+
         Competicao competicao = obterCompeticao();
 
         if (!competicao.getFaseAtual().equals(fase)) {
-            throw new RuntimeException("Fase solicitada é diferente da fase atual da competição");
+            throw new RuntimeException(
+                    "Fase solicitada é diferente da fase atual da competição"
+            );
         }
 
-        if (competicao.getStatusFase() != StatusFase.EM_ANDAMENTO) {
-            throw new RuntimeException("A fase não está em andamento");
+        if (competicao.getStatusFase()
+                != StatusFase.EM_ANDAMENTO) {
+
+            throw new RuntimeException(
+                    "A fase não está em andamento"
+            );
         }
 
         if (confrontoRepository.existsByFase(fase)) {
-            throw new RuntimeException("Confrontos desta fase já foram gerados");
+            throw new RuntimeException(
+                    "Confrontos desta fase já foram gerados"
+            );
         }
 
-        List<Submissao> lista = submissaoRepository.findByFaseAtual(fase);
+        List<Submissao> lista =
+                submissaoRepository.findByFaseAtual(fase);
 
         if (lista.isEmpty()) {
-            throw new RuntimeException("Nenhuma submissão encontrada para esta fase");
+            throw new RuntimeException(
+                    "Nenhuma submissão encontrada para esta fase"
+            );
         }
 
         Collections.shuffle(lista);
 
         for (int i = 0; i < lista.size(); i += 2) {
-            Submissao casa = lista.get(i);
-            Submissao fora = (i + 1 < lista.size()) ? lista.get(i + 1) : null;
 
-            Confronto confronto = Confronto.builder()
-                    .fase(fase)
-                    .casa(casa)
-                    .fora(fora)
-                    .resolvido(false)
-                    .build();
+            Submissao casa = lista.get(i);
+
+            Submissao fora =
+                    (i + 1 < lista.size())
+                            ? lista.get(i + 1)
+                            : null;
+
+            Confronto confronto =
+                    Confronto.builder()
+                            .fase(fase)
+                            .casa(casa)
+                            .fora(fora)
+                            .resolvido(false)
+                            .build();
 
             confrontoRepository.save(confronto);
         }
     }
 
     // =========================
-    // RESOLVER CONFRONTO + CICLO AUTOMÁTICO
+    // RESOLVER CONFRONTO
     // =========================
     @Transactional
-    public void resolverConfronto(Long confrontoId, Long vencedorId) {
+    public void resolverConfronto(
+            Long confrontoId,
+            Long vencedorId
+    ) {
 
-        Confronto confronto = confrontoRepository.findById(confrontoId)
-                .orElseThrow(() -> new RuntimeException("Confronto não encontrado"));
+        Confronto confronto =
+                confrontoRepository.findById(
+                                confrontoId
+                        )
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Confronto não encontrado"
+                                )
+                        );
 
-        if (Boolean.TRUE.equals(confronto.getResolvido())) {
-            throw new RuntimeException("Confronto já resolvido");
+        if (Boolean.TRUE.equals(
+                confronto.getResolvido()
+        )) {
+
+            throw new RuntimeException(
+                    "Confronto já resolvido"
+            );
         }
 
-        Competicao competicao = obterCompeticao();
+        Competicao competicao =
+                obterCompeticao();
 
-        if (competicao.getStatusFase() != StatusFase.EM_ANDAMENTO) {
-            throw new RuntimeException("A fase não está em andamento");
+        if (competicao.getStatusFase()
+                != StatusFase.EM_ANDAMENTO) {
+
+            throw new RuntimeException(
+                    "A fase não está em andamento"
+            );
         }
 
-        if (!competicao.getFaseAtual().equals(confronto.getFase())) {
-            throw new RuntimeException("Confronto não pertence à fase atual");
+        if (!competicao.getFaseAtual()
+                .equals(confronto.getFase())) {
+
+            throw new RuntimeException(
+                    "Confronto não pertence à fase atual"
+            );
         }
 
-        Submissao casa = confronto.getCasa();
-        Submissao fora = confronto.getFora();
+        Submissao casa =
+                confronto.getCasa();
+
+        Submissao fora =
+                confronto.getFora();
 
         Submissao vencedora;
         Submissao perdedora;
 
-        if (casa.getId().equals(vencedorId)) {
+        if (casa.getId()
+                .equals(vencedorId)) {
+
             vencedora = casa;
             perdedora = fora;
-        } else if (fora != null && fora.getId().equals(vencedorId)) {
+
+        } else if (fora != null
+                && fora.getId()
+                .equals(vencedorId)) {
+
             vencedora = fora;
             perdedora = casa;
+
         } else {
-            throw new RuntimeException("Vencedor inválido: id não pertence a nenhum dos participantes");
+
+            throw new RuntimeException(
+                    "Vencedor inválido: id não pertence a nenhum dos participantes"
+            );
         }
 
         if (perdedora != null) {
-            perdedora.setStatus(StatusSubmissao.ELIMINADA);
-            submissaoRepository.save(perdedora);
+
+            perdedora.setStatus(
+                    StatusSubmissao.ELIMINADA
+            );
+
+            submissaoRepository.save(
+                    perdedora
+            );
         }
 
-        FaseCompeticao proximaFase = vencedora.getFaseAtual().proxima();
-        vencedora.setFaseAtual(proximaFase);
-        vencedora.setStatus(
-                proximaFase == FaseCompeticao.CAMPEA
-                        ? StatusSubmissao.CAMPEA
-                        : StatusSubmissao.CLASSIFICADA
+        FaseCompeticao proximaFase =
+                vencedora.getFaseAtual()
+                        .proxima();
+
+        vencedora.setFaseAtual(
+                proximaFase
         );
-        submissaoRepository.save(vencedora);
 
-        confronto.setVencedora(vencedora);
-        confronto.setResolvido(true);
-        confrontoRepository.save(confronto);
+        /**
+         * FINAL permanece sigilosa.
+         * Não revelamos CAMPEA automaticamente.
+         */
+        vencedora.setStatus(
+                StatusSubmissao.CLASSIFICADA
+        );
 
-        verificarEncerramentoEAvancar(competicao);
+        submissaoRepository.save(
+                vencedora
+        );
+
+        confronto.setVencedora(
+                vencedora
+        );
+
+        confronto.setResolvido(
+                true
+        );
+
+        confrontoRepository.save(
+                confronto
+        );
+
+        verificarEncerramentoDaFase(
+                competicao
+        );
     }
 
     // =========================
-    // AUTO ENCERRAR + AVANÇAR
+    // ENCERRAR FASE
     // =========================
-    private void verificarEncerramentoEAvancar(Competicao competicao) {
+    private void verificarEncerramentoDaFase(
+            Competicao competicao
+    ) {
 
-        boolean existePendente = confrontoRepository.findByFase(competicao.getFaseAtual())
-                .stream()
-                .anyMatch(c -> !Boolean.TRUE.equals(c.getResolvido()));
+        boolean existePendente =
+                confrontoRepository
+                        .findByFase(
+                                competicao.getFaseAtual()
+                        )
+                        .stream()
+                        .anyMatch(c ->
+                                !Boolean.TRUE.equals(
+                                        c.getResolvido()
+                                )
+                        );
 
         if (!existePendente) {
-            FaseCompeticao faseAtual = competicao.getFaseAtual();
 
-            if (faseAtual.isUltima()) {
-                competicao.setStatusFase(StatusFase.ENCERRADA);
-            } else {
-                competicao.setFaseAtual(faseAtual.proxima());
-                competicao.setStatusFase(StatusFase.EM_ANDAMENTO);
-            }
+            /**
+             * Admin controla avanço.
+             * Não avançamos automaticamente.
+             */
+            competicao.setStatusFase(
+                    StatusFase.ENCERRADA
+            );
 
-            competicaoRepository.save(competicao);
+            competicaoRepository.save(
+                    competicao
+            );
         }
     }
 
     // =========================
-    // CONSULTAR FASE (somente leitura)
+    // CONSULTAR FASE
     // =========================
-    public FaseResponseDTO obterFase(FaseCompeticao fase) {
+    public FaseResponseDTO obterFase(
+            FaseCompeticao fase
+    ) {
 
-        List<Confronto> confrontos = confrontoRepository.findByFase(fase);
+        List<Confronto> confrontos =
+                confrontoRepository.findByFase(
+                        fase
+                );
 
-        List<ConfrontoResponseDTO> confrontoDTOs = confrontos.stream()
-                .map(this::mapConfronto)
-                .toList();
+        List<ConfrontoResponseDTO> confrontoDTOs =
+                confrontos.stream()
+                        .map(this::mapConfronto)
+                        .toList();
 
-        List<Submissao> lista = submissaoRepository.findByFaseAtual(fase);
+        List<Submissao> lista =
+                submissaoRepository.findByFaseAtual(
+                        fase
+                );
 
-        List<SubmissaoResponseDTO> classificadas = lista.stream()
-                .filter(s -> s.getStatus() == StatusSubmissao.CLASSIFICADA
-                        || s.getStatus() == StatusSubmissao.CAMPEA)
-                .map(this::mapToResponse)
-                .toList();
+        List<SubmissaoResponseDTO> classificadas =
+                lista.stream()
+                        .filter(s ->
+                                s.getStatus()
+                                        == StatusSubmissao.CLASSIFICADA
+                                        || s.getStatus()
+                                        == StatusSubmissao.CAMPEA
+                        )
+                        .map(this::mapToResponse)
+                        .toList();
 
-        List<SubmissaoResponseDTO> eliminadas = lista.stream()
-                .filter(s -> s.getStatus() == StatusSubmissao.ELIMINADA)
-                .map(this::mapToResponse)
-                .toList();
+        List<SubmissaoResponseDTO> eliminadas =
+                lista.stream()
+                        .filter(s ->
+                                s.getStatus()
+                                        == StatusSubmissao.ELIMINADA
+                        )
+                        .map(this::mapToResponse)
+                        .toList();
 
         return new FaseResponseDTO(
                 fase,
@@ -382,23 +499,48 @@ public class SubmissaoService {
     // HELPERS
     // =========================
     private Competicao obterCompeticao() {
-        return competicaoRepository.findAll().stream().findFirst()
-                .orElseThrow(() -> new RuntimeException("Competição não iniciada"));
+
+        return competicaoRepository
+                .findAll()
+                .stream()
+                .findFirst()
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Competição não iniciada"
+                        )
+                );
     }
 
-    private ConfrontoResponseDTO mapConfronto(Confronto c) {
+    private ConfrontoResponseDTO mapConfronto(
+            Confronto c
+    ) {
+
         return new ConfrontoResponseDTO(
                 c.getId(),
-                mapToResponse(c.getCasa()),
-                c.getFora() != null ? mapToResponse(c.getFora()) : null,
-                c.getVencedora() != null ? mapToResponse(c.getVencedora()) : null,
+                mapToResponse(
+                        c.getCasa()
+                ),
+                c.getFora() != null
+                        ? mapToResponse(
+                        c.getFora()
+                )
+                        : null,
+                c.getVencedora() != null
+                        ? mapToResponse(
+                        c.getVencedora()
+                )
+                        : null,
                 c.getResolvido()
         );
     }
 
-    private SubmissaoResponseDTO mapToResponse(Submissao submissao) {
+    private SubmissaoResponseDTO mapToResponse(
+            Submissao submissao
+    ) {
 
-        String baseUrl = "/submissoes/" + submissao.getId();
+        String baseUrl =
+                "/submissoes/"
+                        + submissao.getId();
 
         return new SubmissaoResponseDTO(
                 submissao.getId(),
@@ -409,8 +551,12 @@ public class SubmissaoService {
                 submissao.getFaseAtual(),
                 submissao.getAutora().getId(),
                 submissao.getEvento().getId(),
-                submissao.getArquivoPublicoUrl() != null ? baseUrl + "/arquivo-publico" : null,
-                baseUrl + "/arquivo-completo"
+                submissao.getArquivoPublicoUrl() != null
+                        ? baseUrl
+                        + "/arquivo-publico"
+                        : null,
+                baseUrl
+                        + "/arquivo-completo"
         );
     }
 }
