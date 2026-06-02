@@ -1,0 +1,131 @@
+```gitignore
+HELP.md
+
+# =========================================================
+# 🔧 BUILD / COMPILE
+# =========================================================
+target/
+build/
+out/
+
+!**/src/main/**/target/
+!**/src/test/**/target/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# =========================================================
+# 🔐 VARIÁVEIS DE AMBIENTE / CONFIG SENSÍVEL
+# =========================================================
+.env
+.env.*
+*.env
+
+application-local.yml
+application-dev.yml
+application-prod.yml
+
+# Caso exista properties local com senha/token
+application-local.properties
+application-dev.properties
+application-prod.properties
+
+# =========================================================
+# 🔐 CERTIFICADOS / CHAVES / SEGREDOS
+# =========================================================
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+
+# =========================================================
+# 🗄️ BANCO / DUMPS LOCAIS
+# (NÃO IGNORA FLYWAY MIGRATIONS)
+# =========================================================
+*.dump
+
+backup*.sql
+dump*.sql
+database*.sql
+
+# =========================================================
+# 📝 LOGS
+# =========================================================
+*.log
+logs/
+log/
+
+# =========================================================
+# 🧪 TESTES / RELATÓRIOS / COVERAGE
+# =========================================================
+/test-output/
+/reports/
+
+coverage/
+.jacoco/
+jacoco.exec
+
+surefire-reports/
+failsafe-reports/
+
+# =========================================================
+# 📦 MAVEN WRAPPER
+# (versionar wrapper é recomendado)
+# =========================================================
+# .mvn/wrapper/maven-wrapper.jar
+
+# =========================================================
+# ☕ JAVA
+# =========================================================
+*.class
+
+# =========================================================
+# 🌱 SPRING TOOLS SUITE (STS)
+# =========================================================
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+# =========================================================
+# 💡 INTELLIJ IDEA
+# =========================================================
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# =========================================================
+# 🧰 NETBEANS
+# =========================================================
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# =========================================================
+# 🧠 VS CODE
+# =========================================================
+.vscode/
+
+# =========================================================
+# 🐳 DOCKER (SE USAR DEPOIS)
+# =========================================================
+docker-compose.override.yml
+
+# =========================================================
+# 🧾 SISTEMA OPERACIONAL
+# =========================================================
+.DS_Store
+Thumbs.db
+
+# Temp Windows/Linux/Mac
+*.tmp
+*~
+
+# Uploads locais temporários
+uploads/
