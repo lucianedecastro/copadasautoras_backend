@@ -6,7 +6,8 @@ public enum FaseCompeticao {
     OITAVAS,
     QUARTAS,
     SEMIFINAL,
-    FINAL;
+    FINAL,
+    CAMPEA;
 
     public FaseCompeticao proxima() {
 
@@ -15,12 +16,13 @@ public enum FaseCompeticao {
             case OITAVAS -> QUARTAS;
             case QUARTAS -> SEMIFINAL;
             case SEMIFINAL -> FINAL;
-            case FINAL -> FINAL;
+            case FINAL -> CAMPEA;
+            case CAMPEA -> CAMPEA;
         };
     }
 
     public boolean isUltima() {
-        return this == FINAL;
+        return this == CAMPEA;
     }
 }
 

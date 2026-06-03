@@ -20,6 +20,15 @@ public interface SubmissaoRepository
             StatusSubmissao status
     );
 
+    List<Submissao> findByGrupoId(
+            Long grupoId
+    );
+
+    List<Submissao> findByGrupoIdAndFaseAtual(
+            Long grupoId,
+            FaseCompeticao faseAtual
+    );
+
     /**
      * Regra institucional:
      * uma autora possui apenas uma submissão por evento.

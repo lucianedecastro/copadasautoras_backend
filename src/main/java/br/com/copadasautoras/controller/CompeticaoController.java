@@ -1,6 +1,7 @@
 package br.com.copadasautoras.controller;
 
 import br.com.copadasautoras.entity.Competicao;
+import br.com.copadasautoras.entity.Submissao;
 import br.com.copadasautoras.service.CompeticaoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -27,7 +28,10 @@ public class CompeticaoController {
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Competicao> obter() {
-        return ResponseEntity.ok(service.obter());
+
+        return ResponseEntity.ok(
+                service.obter()
+        );
     }
 
     // =========================
@@ -40,7 +44,10 @@ public class CompeticaoController {
     @PostMapping("/iniciar")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Competicao> iniciar() {
-        return ResponseEntity.ok(service.iniciar());
+
+        return ResponseEntity.ok(
+                service.iniciar()
+        );
     }
 
     // =========================
@@ -53,7 +60,10 @@ public class CompeticaoController {
     @PostMapping("/encerrar")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Competicao> encerrarFase() {
-        return ResponseEntity.ok(service.encerrarFase());
+
+        return ResponseEntity.ok(
+                service.encerrarFase()
+        );
     }
 
     // =========================
@@ -66,7 +76,35 @@ public class CompeticaoController {
     @PostMapping("/avancar")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Competicao> avancarFase() {
-        return ResponseEntity.ok(service.avancarFase());
+
+        return ResponseEntity.ok(
+                service.avancarFase()
+        );
+    }
+
+    // =========================
+    // 🏆 REVELAR CAMPEÃ
+    // =========================
+    @Operation(
+            summary = "Revelar campeã",
+            description = """
+                    Apura os votos da FINAL
+                    e revela oficialmente
+                    a obra campeã.
+
+                    Apenas ADMIN.
+
+                    A competição deve estar
+                    encerrada.
+                    """
+    )
+    @PostMapping("/revelar-campea")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Submissao>
+    revelarCampea() {
+
+        return ResponseEntity.ok(
+                service.revelarCampea()
+        );
     }
 }
-

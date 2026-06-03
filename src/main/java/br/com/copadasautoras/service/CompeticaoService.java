@@ -5,11 +5,13 @@ import br.com.copadasautoras.repository.CompeticaoRepository;
 import br.com.copadasautoras.repository.GrupoCompeticaoRepository;
 import br.com.copadasautoras.repository.SubmissaoRepository;
 import br.com.copadasautoras.repository.UsuarioRepository;
+import br.com.copadasautoras.repository.VotoFinalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -20,6 +22,7 @@ public class CompeticaoService {
     private final SubmissaoRepository submissaoRepository;
     private final UsuarioRepository usuarioRepository;
     private final GrupoCompeticaoRepository grupoCompeticaoRepository;
+    private final VotoFinalRepository votoFinalRepository;
 
     public Competicao obter() {
 
@@ -56,24 +59,17 @@ public class CompeticaoService {
             );
         }
 
-        // ==================================
-        // VALIDAÇÃO FASE 32
-        // ==================================
-
         List<Submissao> submissoes =
                 submissaoRepository.findByFaseAtual(
                         FaseCompeticao.FASE_32
                 );
 
         if (submissoes.size() != 32) {
+
             throw new RuntimeException(
                     "A FASE_32 exige exatamente 32 submissões"
             );
         }
-
-        // ==================================
-        // VALIDAÇÃO JURADAS
-        // ==================================
 
         List<Usuario> bancas =
                 usuarioRepository.findByRole(
@@ -81,14 +77,11 @@ public class CompeticaoService {
                 );
 
         if (bancas.size() < 8) {
+
             throw new RuntimeException(
                     "É necessário possuir ao menos 8 juradas cadastradas"
             );
         }
-
-        // ==================================
-        // EVITAR DUPLICAÇÃO DE GRUPOS
-        // ==================================
 
         if (grupoCompeticaoRepository.existsByFase(
                 FaseCompeticao.FASE_32
@@ -99,25 +92,18 @@ public class CompeticaoService {
             );
         }
 
-        // ==================================
-        // EMBARALHAR OBRAS E BANCAS
-        // ==================================
-
         Collections.shuffle(submissoes);
         Collections.shuffle(bancas);
 
         NomeGrupo[] grupos =
                 NomeGrupo.values();
 
-        // ==================================
-        // GERAR GRUPOS
-        // ==================================
-
         int indexSubmissao = 0;
 
         for (int i = 0; i < grupos.length; i++) {
 
-            Usuario banca = bancas.get(i);
+            Usuario banca =
+                    bancas.get(i);
 
             GrupoCompeticao grupo =
                     GrupoCompeticao.builder()
@@ -135,10 +121,6 @@ public class CompeticaoService {
             grupo =
                     grupoCompeticaoRepository
                             .save(grupo);
-
-            // ==========================
-            // DISTRIBUIR 4 OBRAS
-            // ==========================
 
             for (int j = 0; j < 4; j++) {
 
@@ -225,5 +207,90 @@ public class CompeticaoService {
         return repository.save(
                 competicao
         );
+    }
+
+    @Transactional
+    public Submissao revelarCampea() {
+
+        Competicao competicao =
+                obter();
+
+        if (competicao.getStatusFase()
+                != StatusFase.ENCERRADA) {
+
+            throw new RuntimeException(
+                    "A competição precisa estar encerrada."
+            );
+        }
+
+        if (competicao.getFaseAtual()
+                != FaseCompeticao.FINAL) {
+
+            throw new RuntimeException(
+                    "A revelação só pode ocorrer após a FINAL."
+            );
+        }
+
+        List<Submissao> finalistas =
+                submissaoRepository
+                        .findByFaseAtualAndStatus(
+                                FaseCompeticao.FINAL,
+                                StatusSubmissao.CLASSIFICADA
+                        );
+
+        if (finalistas.size() != 2) {
+
+            throw new RuntimeException(
+                    "A FINAL deve possuir exatamente 2 obras."
+            );
+        }
+
+        Submissao campea =
+                finalistas.stream()
+                        .max(
+                                Comparator.comparingLong(
+                                        s -> votoFinalRepository
+                                                .countBySubmissaoId(
+                                                        s.getId()
+                                                )
+                                )
+                        )
+                        .orElseThrow();
+
+        for (Submissao submissao
+                : finalistas) {
+
+            if (submissao.getId()
+                    .equals(campea.getId())) {
+
+                submissao.setStatus(
+                        StatusSubmissao.CAMPEA
+                );
+
+                submissao.setFaseAtual(
+                        FaseCompeticao.CAMPEA
+                );
+
+            } else {
+
+                submissao.setStatus(
+                        StatusSubmissao.ELIMINADA
+                );
+            }
+
+            submissaoRepository.save(
+                    submissao
+            );
+        }
+
+        competicao.setFaseAtual(
+                FaseCompeticao.CAMPEA
+        );
+
+        repository.save(
+                competicao
+        );
+
+        return campea;
     }
 }

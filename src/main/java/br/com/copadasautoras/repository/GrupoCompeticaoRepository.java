@@ -26,6 +26,10 @@ public interface GrupoCompeticaoRepository
             FaseCompeticao fase
     );
 
+    Optional<GrupoCompeticao> findByBancaId(
+            Long bancaId
+    );
+
     boolean existsByFase(
             FaseCompeticao fase
     );
