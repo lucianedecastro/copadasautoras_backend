@@ -9,6 +9,7 @@ import br.com.copadasautoras.repository.VotoFinalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import br.com.copadasautoras.repository.EventoRepository;
 
 import java.util.Collections;
 import java.util.Comparator;
@@ -23,6 +24,7 @@ public class CompeticaoService {
     private final UsuarioRepository usuarioRepository;
     private final GrupoCompeticaoRepository grupoCompeticaoRepository;
     private final VotoFinalRepository votoFinalRepository;
+    private final EventoRepository eventoRepository;
 
     public Competicao obter() {
 
@@ -59,15 +61,25 @@ public class CompeticaoService {
             );
         }
 
+        Evento evento =
+                eventoRepository.findByAtivoTrue()
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Nenhum evento ativo encontrado."
+                                )
+                        );
+
         List<Submissao> submissoes =
-                submissaoRepository.findByFaseAtual(
-                        FaseCompeticao.FASE_32
-                );
+                submissaoRepository
+                        .findByEventoIdAndStatus(
+                                evento.getId(),
+                                StatusSubmissao.EM_COMPETICAO
+                        );
 
         if (submissoes.size() != 32) {
 
             throw new RuntimeException(
-                    "A FASE_32 exige exatamente 32 submissões"
+                    "A competição exige exatamente 32 obras EM_COMPETICAO."
             );
         }
 
@@ -131,6 +143,10 @@ public class CompeticaoService {
 
                 submissao.setGrupo(
                         grupo
+                );
+
+                submissao.setFaseAtual(
+                        FaseCompeticao.FASE_32
                 );
 
                 submissaoRepository.save(

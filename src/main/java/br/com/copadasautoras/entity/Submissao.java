@@ -56,6 +56,7 @@ public class Submissao {
     /**
      * Grupo da competição (FASE_32).
      * Uma submissão pertence a apenas um grupo.
+     * Permanece nulo até a seleção para a edição.
      */
     @ManyToOne
     @JoinColumn(name = "grupo_id")
@@ -67,20 +68,39 @@ public class Submissao {
     @Enumerated(EnumType.STRING)
     private FaseCompeticao faseAtual;
 
+    /**
+     * Justificativa administrativa interna.
+     *
+     * Não é exibida para autora nem para banca.
+     * Utilizada apenas para controle editorial
+     * da organização da Copa.
+     */
+    @Column(columnDefinition = "TEXT")
+    private String justificativaNaoSelecao;
+
+    /**
+     * Data em que a curadoria editorial
+     * registrou a decisão sobre a obra.
+     */
+    private LocalDateTime dataDecisaoEditorial;
+
     @PrePersist
     public void prePersist() {
 
+        /**
+         * Toda obra nasce apenas como SUBMETIDA.
+         * Ainda não participa da competição.
+         */
         if (this.status == null) {
             this.status =
                     StatusSubmissao
-                            .EM_COMPETICAO;
+                            .SUBMETIDA;
         }
 
-        if (this.faseAtual == null) {
-            this.faseAtual =
-                    FaseCompeticao
-                            .FASE_32;
-        }
+        /**
+         * A fase será definida posteriormente
+         * quando a obra for selecionada para
+         * compor a edição da Copa.
+         */
     }
 }
-

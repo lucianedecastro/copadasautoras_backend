@@ -45,4 +45,27 @@ public interface SubmissaoRepository
     Optional<Submissao> findFirstByAutoraId(
             Long autoraId
     );
+
+    /**
+     * Busca submissões por status.
+     */
+    List<Submissao> findByStatus(
+            StatusSubmissao status
+    );
+
+    /**
+     * Busca submissões de um evento.
+     */
+    List<Submissao> findByEventoId(
+            Long eventoId
+    );
+
+    /**
+     * Busca submissões de um evento
+     * filtrando por status.
+     */
+    List<Submissao> findByEventoIdAndStatus(
+            Long eventoId,
+            StatusSubmissao status
+    );
 }

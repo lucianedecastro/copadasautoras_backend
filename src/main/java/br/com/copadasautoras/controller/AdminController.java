@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import br.com.copadasautoras.dto.SelecaoEdicaoRequest;
+import br.com.copadasautoras.dto.SelecaoEdicaoResponseDTO;
 
 import java.util.List;
 
@@ -132,6 +134,39 @@ public class AdminController {
 
         return ResponseEntity.ok(
                 "Usuário removido com sucesso."
+        );
+    }
+
+    // =========================
+// 🏆 SELEÇÃO EDITORIAL
+// =========================
+
+    @Operation(
+            summary = "Selecionar obras da edição",
+            description = """
+                Seleciona as 32 obras competidoras
+                do evento ativo da Copa.
+                
+                As obras selecionadas passam para
+                EM_COMPETICAO e FASE_32.
+                
+                As demais submissões pendentes
+                passam para NAO_SELECIONADA.
+                """
+    )
+    @PostMapping("/selecao")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<SelecaoEdicaoResponseDTO>
+    selecionarObrasDaEdicao(
+            @Valid
+            @RequestBody
+            SelecaoEdicaoRequest request
+    ) {
+
+        return ResponseEntity.ok(
+                adminService.selecionarObrasDaEdicao(
+                        request
+                )
         );
     }
 

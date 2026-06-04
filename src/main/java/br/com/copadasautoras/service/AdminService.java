@@ -13,7 +13,14 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import br.com.copadasautoras.dto.SelecaoEdicaoRequest;
+import br.com.copadasautoras.dto.SelecaoEdicaoResponseDTO;
+import br.com.copadasautoras.repository.EventoRepository;
+import br.com.copadasautoras.repository.SubmissaoRepository;
 
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 
 @Service
@@ -25,6 +32,8 @@ public class AdminService {
     private final SubmissaoService submissaoService;
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EventoRepository eventoRepository;
+    private final SubmissaoRepository submissaoRepository;
 
     // =========================
     // 👤 GERENCIAMENTO DE USUÁRIOS
@@ -398,6 +407,99 @@ public class AdminService {
 
         competicaoRepository.save(
                 competicao
+        );
+    }
+
+    // =========================
+// 🏆 SELEÇÃO EDITORIAL
+// =========================
+
+    @Transactional
+    public SelecaoEdicaoResponseDTO selecionarObrasDaEdicao(
+            SelecaoEdicaoRequest request
+    ) {
+
+        Evento evento = eventoRepository
+                .findByAtivoTrue()
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Nenhum evento ativo encontrado."
+                        )
+                );
+
+        List<Submissao> submetidas =
+                submissaoRepository
+                        .findByEventoIdAndStatus(
+                                evento.getId(),
+                                StatusSubmissao.SUBMETIDA
+                        );
+
+        if (submetidas.isEmpty()) {
+            throw new RuntimeException(
+                    "Não existem submissões pendentes para seleção."
+            );
+        }
+
+        Set<Long> selecionadas =
+                new HashSet<>(request.submissaoIds());
+
+        LocalDateTime agora =
+                LocalDateTime.now();
+
+        int totalSelecionadas = 0;
+        int totalNaoSelecionadas = 0;
+
+        for (Submissao submissao : submetidas) {
+
+            if (selecionadas.contains(
+                    submissao.getId()
+            )) {
+
+                submissao.setStatus(
+                        StatusSubmissao.EM_COMPETICAO
+                );
+
+                submissao.setFaseAtual(
+                        FaseCompeticao.FASE_32
+                );
+
+                submissao.setDataDecisaoEditorial(
+                        agora
+                );
+
+                submissao.setJustificativaNaoSelecao(
+                        null
+                );
+
+                totalSelecionadas++;
+
+            } else {
+
+                submissao.setStatus(
+                        StatusSubmissao.NAO_SELECIONADA
+                );
+
+                submissao.setDataDecisaoEditorial(
+                        agora
+                );
+
+                submissao.setJustificativaNaoSelecao(
+                        "Obra analisada pela curadoria editorial, mas não selecionada para compor a edição vigente da Copa de Literatura de Futebol Feminino."
+                );
+
+                totalNaoSelecionadas++;
+            }
+        }
+
+        submissaoRepository.saveAll(
+                submetidas
+        );
+
+        return new SelecaoEdicaoResponseDTO(
+                submetidas.size(),
+                totalSelecionadas,
+                totalNaoSelecionadas,
+                "Seleção editorial concluída com sucesso."
         );
     }
 
