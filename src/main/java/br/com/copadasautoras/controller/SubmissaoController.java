@@ -70,6 +70,26 @@ public class SubmissaoController {
     }
 
     // =========================
+// 📖 MINHA SUBMISSÃO
+// =========================
+
+    @Operation(
+            summary = "Consultar minha submissão",
+            description = """
+                Retorna a submissão vinculada à autora autenticada.
+                Requer perfil AUTORA.
+                """
+    )
+    @GetMapping("/submissoes/minha")
+    @PreAuthorize("hasRole('AUTORA')")
+    public ResponseEntity<SubmissaoResponseDTO> minhaSubmissao() {
+
+        return ResponseEntity.ok(
+                submissaoService.buscarMinhaSubmissao()
+        );
+    }
+
+    // =========================
     // 🏆 FASES — /competicao/fases
     // =========================
 

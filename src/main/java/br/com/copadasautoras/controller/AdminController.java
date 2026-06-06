@@ -15,6 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import br.com.copadasautoras.dto.SelecaoEdicaoRequest;
 import br.com.copadasautoras.dto.SelecaoEdicaoResponseDTO;
+import br.com.copadasautoras.dto.SubmissaoResponseDTO;
 
 import java.util.List;
 
@@ -140,6 +141,26 @@ public class AdminController {
     // =========================
 // 🏆 SELEÇÃO EDITORIAL
 // =========================
+    @Operation(
+            summary = "Listar submissões para curadoria",
+            description = """
+                Retorna todas as submissões
+                pendentes de análise editorial
+                do evento ativo.
+
+                Apenas ADMIN.
+                """
+    )
+    @GetMapping("/submissoes")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<SubmissaoResponseDTO>>
+    listarSubmissoesPendentes() {
+
+        return ResponseEntity.ok(
+                adminService.listarSubmissoesPendentes()
+        );
+    }
+
 
     @Operation(
             summary = "Selecionar obras da edição",
@@ -154,6 +175,8 @@ public class AdminController {
                 passam para NAO_SELECIONADA.
                 """
     )
+
+
     @PostMapping("/selecao")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SelecaoEdicaoResponseDTO>

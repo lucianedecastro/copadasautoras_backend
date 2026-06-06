@@ -220,6 +220,41 @@ public class SubmissaoService {
     }
 
     // =========================
+// CONSULTAR MINHA SUBMISSÃO
+// =========================
+    @Transactional(readOnly = true)
+    public SubmissaoResponseDTO buscarMinhaSubmissao() {
+
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        Autora autora = autoraRepository
+                .findByUsuarioEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Autora autenticada não encontrada."
+                        )
+                );
+
+        Submissao submissao =
+                submissaoRepository
+                        .findFirstByAutoraId(
+                                autora.getId()
+                        )
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Autora ainda não possui submissão."
+                                )
+                        );
+
+        return mapToResponse(
+                submissao
+        );
+    }
+
+    // =========================
     // GERAR CONFRONTOS
     // =========================
     @Transactional

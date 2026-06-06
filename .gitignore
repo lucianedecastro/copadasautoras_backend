@@ -29,6 +29,12 @@ application-local.properties
 application-dev.properties
 application-prod.properties
 
+# Spring profiles locais
+src/main/resources/application-local.yml
+
+# Configurações pessoais
+application-local.yml
+
 # =========================================================
 # 🔐 CERTIFICADOS / CHAVES / SEGREDOS
 # =========================================================

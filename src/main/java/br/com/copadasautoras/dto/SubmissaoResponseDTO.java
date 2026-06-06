@@ -14,8 +14,25 @@ public record SubmissaoResponseDTO(
         FaseCompeticao faseAtual,
         Long autoraId,
         Long eventoId,
-
         String arquivoPublicoUrl,
         String arquivoCompletoUrl
 
-) {}
+) {
+
+    public static SubmissaoResponseDTO fromEntity(
+            br.com.copadasautoras.entity.Submissao submissao
+    ) {
+        return new SubmissaoResponseDTO(
+                submissao.getId(),
+                submissao.getTitulo(),
+                submissao.getCategoria(),
+                submissao.getTipoExibicao(),
+                submissao.getStatus(),
+                submissao.getFaseAtual(),
+                submissao.getAutora().getId(),
+                submissao.getEvento().getId(),
+                submissao.getArquivoPublicoUrl(),
+                submissao.getArquivoCompletoUrl()
+        );
+    }
+}

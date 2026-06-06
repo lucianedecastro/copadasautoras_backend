@@ -17,11 +17,13 @@ import br.com.copadasautoras.dto.SelecaoEdicaoRequest;
 import br.com.copadasautoras.dto.SelecaoEdicaoResponseDTO;
 import br.com.copadasautoras.repository.EventoRepository;
 import br.com.copadasautoras.repository.SubmissaoRepository;
+import br.com.copadasautoras.dto.SubmissaoResponseDTO;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -413,6 +415,23 @@ public class AdminService {
     // =========================
 // 🏆 SELEÇÃO EDITORIAL
 // =========================
+
+    @Transactional(readOnly = true)
+    public List<SubmissaoResponseDTO> listarSubmissoesPendentes() {
+
+        Evento eventoAtivo = eventoRepository.findByAtivoTrue()
+                .orElseThrow(() ->
+                        new RuntimeException("Nenhum evento ativo encontrado."));
+
+        return submissaoRepository
+                .findByEventoIdAndStatus(
+                        eventoAtivo.getId(),
+                        StatusSubmissao.SUBMETIDA
+                )
+                .stream()
+                .map(SubmissaoResponseDTO::fromEntity)
+                .collect(Collectors.toList());
+    }
 
     @Transactional
     public SelecaoEdicaoResponseDTO selecionarObrasDaEdicao(
