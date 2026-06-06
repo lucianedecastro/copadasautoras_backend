@@ -22,12 +22,12 @@ out/
 
 application-local.yml
 application-dev.yml
-application-prod.yml
+
 
 # Caso exista properties local com senha/token
 application-local.properties
 application-dev.properties
-application-prod.properties
+
 
 # Spring profiles locais
 src/main/resources/application-local.yml
