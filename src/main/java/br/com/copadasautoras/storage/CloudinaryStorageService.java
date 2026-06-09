@@ -107,24 +107,20 @@ public class CloudinaryStorageService {
             if (cloudinaryUrl.contains("/authenticated/")) {
                 // Arquivo privado — precisa de signed URL.
                 String publicId = extrairPublicId(cloudinaryUrl);
-                // CAUSA DO BUG: quando o publicId tem extensão (ex: "termo-aceite-uuid.pdf"),
-                // o SDK Cloudinary ignora .type("authenticated") e gera URL com tipo "upload".
-                // CORREÇÃO: separar a extensão e passar via .format() para forçar o tipo certo.
-                String ext          = publicId.contains(".")
-                        ? publicId.substring(publicId.lastIndexOf('.') + 1)
-                        : null;
-                String publicIdBase = ext != null
-                        ? publicId.substring(0, publicId.lastIndexOf('.'))
-                        : publicId;
 
-                com.cloudinary.Url urlBuilder = cloudinary.url()
+                // Strip da extensão se presente (ex: "termo.pdf" → "termo").
+                // Quando o publicId tem extensão, o SDK ignora .type("authenticated")
+                // e gera URL com tipo "upload" — causando 401 no Cloudinary.
+                // Sem extensão, o comportamento é idêntico ao arquivo-completo (que funciona).
+                // O Cloudinary encontra o recurso pelo publicId limpo; o formato pdf
+                // está registrado internamente no upload original.
+                String publicIdBase = publicId.replaceAll("\\.[^./]+$", "");
+
+                urlParaDownload = cloudinary.url()
                         .resourceType("raw")
                         .type("authenticated")
-                        .signed(true);
-
-                if (ext != null) urlBuilder = urlBuilder.format(ext);
-
-                urlParaDownload = urlBuilder.generate(publicIdBase);
+                        .signed(true)
+                        .generate(publicIdBase);
             } else {
                 // Arquivo público — URL direta funciona
                 urlParaDownload = cloudinaryUrl;
