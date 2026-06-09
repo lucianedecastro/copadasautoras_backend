@@ -96,7 +96,11 @@ public class SecurityConfig {
                 "https://copadasautoras.com.br",
                 "https://www.copadasautoras.com.br"
         ));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+
+        // HEAD adicionado — necessário para requests de verificação de existência
+        // sem body (ex: verificarTermo no painel da autora).
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
+
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 
@@ -106,4 +110,3 @@ public class SecurityConfig {
         return source;
     }
 }
-
