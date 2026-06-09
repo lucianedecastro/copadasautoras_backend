@@ -105,13 +105,26 @@ public class CloudinaryStorageService {
             String urlParaDownload;
 
             if (cloudinaryUrl.contains("/authenticated/")) {
-                // Arquivo privado — precisa de signed URL temporária (5 minutos)
+                // Arquivo privado — precisa de signed URL.
                 String publicId = extrairPublicId(cloudinaryUrl);
-                urlParaDownload = cloudinary.url()
+                // CAUSA DO BUG: quando o publicId tem extensão (ex: "termo-aceite-uuid.pdf"),
+                // o SDK Cloudinary ignora .type("authenticated") e gera URL com tipo "upload".
+                // CORREÇÃO: separar a extensão e passar via .format() para forçar o tipo certo.
+                String ext          = publicId.contains(".")
+                        ? publicId.substring(publicId.lastIndexOf('.') + 1)
+                        : null;
+                String publicIdBase = ext != null
+                        ? publicId.substring(0, publicId.lastIndexOf('.'))
+                        : publicId;
+
+                com.cloudinary.Url urlBuilder = cloudinary.url()
                         .resourceType("raw")
                         .type("authenticated")
-                        .signed(true)
-                        .generate(publicId);
+                        .signed(true);
+
+                if (ext != null) urlBuilder = urlBuilder.format(ext);
+
+                urlParaDownload = urlBuilder.generate(publicIdBase);
             } else {
                 // Arquivo público — URL direta funciona
                 urlParaDownload = cloudinaryUrl;
