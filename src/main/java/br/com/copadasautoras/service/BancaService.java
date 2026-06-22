@@ -71,6 +71,11 @@ public class BancaService {
                         competicao.getFaseAtual()
                 )
                 .stream()
+                // obras eliminadas em fases anteriores podem permanecer
+                // com o mesmo faseAtual (esse campo só é atualizado
+                // quando a obra avança) — por isso o status precisa
+                // ser checado aqui, não só a fase.
+                .filter(s -> s.getStatus() != StatusSubmissao.ELIMINADA)
                 .map(this::mapToDTO)
                 .toList();
     }
@@ -97,13 +102,19 @@ public class BancaService {
                 competicao.getFaseAtual();
 
         // Filtra apenas as obras que estão de fato na fase atual da
-        // competição — evita pegar obras já eliminadas em fases
-        // anteriores, cujo faseAtual nunca é atualizado após a eliminação.
+        // competição e que ainda estão ativas — obras eliminadas podem
+        // permanecer com o mesmo faseAtual (esse campo só é atualizado
+        // quando a obra avança), então o status precisa ser checado
+        // também, senão uma obra já eliminada volta a aparecer como
+        // classificável.
         List<Submissao> obrasGrupo =
                 submissaoRepository.findByGrupoIdAndFaseAtual(
-                        grupo.getId(),
-                        faseAtual
-                );
+                                grupo.getId(),
+                                faseAtual
+                        )
+                        .stream()
+                        .filter(s -> s.getStatus() != StatusSubmissao.ELIMINADA)
+                        .toList();
 
         if (obrasGrupo.isEmpty()) {
 
