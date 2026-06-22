@@ -1,11 +1,7 @@
 package br.com.copadasautoras.service;
 
 import br.com.copadasautoras.entity.*;
-import br.com.copadasautoras.dto.ConfrontoResponseDTO;
-import br.com.copadasautoras.dto.FaseDetalheResponseDTO;
-import br.com.copadasautoras.dto.SubmissaoResponseDTO;
 import br.com.copadasautoras.repository.CompeticaoRepository;
-import br.com.copadasautoras.repository.ConfrontoRepository;
 import br.com.copadasautoras.repository.GrupoCompeticaoRepository;
 import br.com.copadasautoras.repository.SubmissaoRepository;
 import br.com.copadasautoras.repository.UsuarioRepository;
@@ -29,7 +25,6 @@ public class CompeticaoService {
     private final GrupoCompeticaoRepository grupoCompeticaoRepository;
     private final VotoFinalRepository votoFinalRepository;
     private final EventoRepository eventoRepository;
-    private final ConfrontoRepository confrontoRepository;
 
     public Competicao obter() {
 
@@ -313,62 +308,5 @@ public class CompeticaoService {
         );
 
         return campea;
-    }
-
-    public FaseDetalheResponseDTO obterFase(
-            FaseCompeticao fase
-    ) {
-
-        List<Confronto> confrontos =
-                confrontoRepository.findByFase(
-                        fase
-                );
-
-        List<Submissao> classificadas =
-                submissaoRepository.findByFaseAtualAndStatus(
-                        fase,
-                        StatusSubmissao.CLASSIFICADA
-                );
-
-        List<Submissao> eliminadas =
-                submissaoRepository.findByFaseAtualAndStatus(
-                        fase,
-                        StatusSubmissao.ELIMINADA
-                );
-
-        return new FaseDetalheResponseDTO(
-                fase,
-                confrontos.size(),
-                confrontos.stream()
-                        .map(this::toConfrontoResponseDTO)
-                        .toList(),
-                classificadas.stream()
-                        .map(SubmissaoResponseDTO::fromEntity)
-                        .toList(),
-                eliminadas.stream()
-                        .map(SubmissaoResponseDTO::fromEntity)
-                        .toList()
-        );
-    }
-
-    private ConfrontoResponseDTO toConfrontoResponseDTO(
-            Confronto confronto
-    ) {
-
-        return new ConfrontoResponseDTO(
-                confronto.getId(),
-                SubmissaoResponseDTO.fromEntity(
-                        confronto.getCasa()
-                ),
-                SubmissaoResponseDTO.fromEntity(
-                        confronto.getFora()
-                ),
-                confronto.getVencedora() != null
-                        ? SubmissaoResponseDTO.fromEntity(
-                        confronto.getVencedora()
-                )
-                        : null,
-                confronto.getResolvido()
-        );
     }
 }

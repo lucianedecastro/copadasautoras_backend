@@ -14,7 +14,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
 @RestController
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
@@ -116,14 +115,40 @@ public class SubmissaoController {
     // =========================
 
     @Operation(
+            summary = "Gerar confrontos da fase",
+            description = """
+                    Sorteia pares de obras classificadas para a fase
+                    informada e sorteia uma jurada por par. Válido para
+                    OITAVAS, QUARTAS e SEMIFINAL — a FASE_32 é gerada
+                    pelo /competicao/iniciar e a FINAL não usa confrontos.
+
+                    Apenas ADMIN.
+                    """
+    )
+    @PostMapping("/confrontos/gerar/{fase}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> gerarConfrontos(
+            @PathVariable FaseCompeticao fase
+    ) {
+
+        submissaoService.gerarConfrontos(fase);
+
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(
             summary = "Resolver confronto",
             description = """
-                    Define o vencedor de um confronto.
-                    Acesso permitido apenas para BANCA e ADMIN.
+                    Define o vencedor de um confronto. Ferramenta de
+                    correção manual do admin — no fluxo normal, o
+                    resultado já é registrado quando a jurada classifica
+                    pelo /banca/classificar.
+
+                    Apenas ADMIN.
                     """
     )
     @PostMapping("/confrontos/{id}/resultado")
-    @PreAuthorize("hasAnyRole('BANCA', 'ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> resolverConfronto(
             @PathVariable Long id,
             @RequestParam Long vencedorId

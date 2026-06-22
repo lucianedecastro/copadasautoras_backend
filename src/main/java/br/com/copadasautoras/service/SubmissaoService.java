@@ -23,6 +23,8 @@ public class SubmissaoService {
     private final AceiteTermoRepository aceiteTermoRepository;
     private final ConfrontoRepository confrontoRepository;
     private final CompeticaoRepository competicaoRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final GrupoCompeticaoRepository grupoCompeticaoRepository;
     private final CloudinaryStorageService storageService;
     private final TermoService termoService;
 
@@ -266,6 +268,12 @@ public class SubmissaoService {
             );
         }
 
+        if (fase == FaseCompeticao.FINAL) {
+            throw new RuntimeException(
+                    "A FINAL não utiliza confrontos — use o sorteio das juradas da final."
+            );
+        }
+
         Competicao competicao = obterCompeticao();
 
         if (!competicao.getFaseAtual().equals(fase)) {
@@ -274,11 +282,14 @@ public class SubmissaoService {
             );
         }
 
+        // Depois de avancarFase(), a competição fica NAO_INICIADA até os
+        // confrontos desta fase serem gerados (é exatamente o que este
+        // método faz, virando EM_ANDAMENTO ao final).
         if (competicao.getStatusFase()
-                != StatusFase.EM_ANDAMENTO) {
+                != StatusFase.NAO_INICIADA) {
 
             throw new RuntimeException(
-                    "A fase não está em andamento"
+                    "Só é possível gerar confrontos quando a fase está NAO_INICIADA"
             );
         }
 
@@ -289,24 +300,64 @@ public class SubmissaoService {
         }
 
         List<Submissao> lista =
-                submissaoRepository.findByFaseAtual(fase);
+                submissaoRepository.findByFaseAtualAndStatus(
+                        fase,
+                        StatusSubmissao.CLASSIFICADA
+                );
 
         if (lista.isEmpty()) {
             throw new RuntimeException(
-                    "Nenhuma submissão encontrada para esta fase"
+                    "Nenhuma submissão classificada encontrada para esta fase"
+            );
+        }
+
+        if (lista.size() % 2 != 0) {
+            throw new RuntimeException(
+                    "Número ímpar de obras classificadas ("
+                            + lista.size()
+                            + ") — não é possível formar confrontos."
+            );
+        }
+
+        int totalConfrontos = lista.size() / 2;
+
+        List<Usuario> bancas =
+                usuarioRepository.findByRole(Role.BANCA);
+
+        if (bancas.size() < totalConfrontos) {
+            throw new RuntimeException(
+                    "É necessário ao menos "
+                            + totalConfrontos
+                            + " juradas cadastradas para sortear os confrontos desta fase."
             );
         }
 
         Collections.shuffle(lista);
+        Collections.shuffle(bancas);
 
-        for (int i = 0; i < lista.size(); i += 2) {
+        NomeGrupo[] nomes = NomeGrupo.values();
 
-            Submissao casa = lista.get(i);
+        for (int i = 0; i < totalConfrontos; i++) {
 
-            Submissao fora =
-                    (i + 1 < lista.size())
-                            ? lista.get(i + 1)
-                            : null;
+            Submissao casa = lista.get(i * 2);
+            Submissao fora = lista.get(i * 2 + 1);
+
+            Usuario banca = bancas.get(i);
+
+            GrupoCompeticao grupo =
+                    GrupoCompeticao.builder()
+                            .nomeGrupo(nomes[i % nomes.length])
+                            .fase(fase)
+                            .banca(banca)
+                            .build();
+
+            grupo = grupoCompeticaoRepository.save(grupo);
+
+            casa.setGrupo(grupo);
+            fora.setGrupo(grupo);
+
+            submissaoRepository.save(casa);
+            submissaoRepository.save(fora);
 
             Confronto confronto =
                     Confronto.builder()
@@ -318,6 +369,10 @@ public class SubmissaoService {
 
             confrontoRepository.save(confronto);
         }
+
+        competicao.setStatusFase(StatusFase.EM_ANDAMENTO);
+
+        competicaoRepository.save(competicao);
     }
 
     // =========================
