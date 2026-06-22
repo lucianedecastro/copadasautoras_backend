@@ -90,21 +90,27 @@ public class BancaService {
                         usuarioLogado
                 );
 
+        Competicao competicao =
+                obterCompeticao();
+
+        FaseCompeticao faseAtual =
+                competicao.getFaseAtual();
+
+        // Filtra apenas as obras que estão de fato na fase atual da
+        // competição — evita pegar obras já eliminadas em fases
+        // anteriores, cujo faseAtual nunca é atualizado após a eliminação.
         List<Submissao> obrasGrupo =
-                submissaoRepository.findByGrupoId(
-                        grupo.getId()
+                submissaoRepository.findByGrupoIdAndFaseAtual(
+                        grupo.getId(),
+                        faseAtual
                 );
 
         if (obrasGrupo.isEmpty()) {
 
             throw new RuntimeException(
-                    "Nenhuma obra encontrada para esta jurada"
+                    "Nenhuma obra encontrada para esta jurada nesta fase"
             );
         }
-
-        FaseCompeticao faseAtual =
-                obrasGrupo.get(0)
-                        .getFaseAtual();
 
         int quantidadePermitida =
                 faseAtual == FaseCompeticao.FASE_32
