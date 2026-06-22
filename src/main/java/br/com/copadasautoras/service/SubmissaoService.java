@@ -282,14 +282,14 @@ public class SubmissaoService {
             );
         }
 
-        // Depois de avancarFase(), a competição fica NAO_INICIADA até os
-        // confrontos desta fase serem gerados (é exatamente o que este
-        // método faz, virando EM_ANDAMENTO ao final).
+        // O fluxo real do admin (AdminService.avancarFaseManual) já deixa
+        // a fase em EM_ANDAMENTO ao avançar — é nesse estado que os
+        // confrontos devem ser gerados.
         if (competicao.getStatusFase()
-                != StatusFase.NAO_INICIADA) {
+                != StatusFase.EM_ANDAMENTO) {
 
             throw new RuntimeException(
-                    "Só é possível gerar confrontos quando a fase está NAO_INICIADA"
+                    "A fase não está em andamento"
             );
         }
 
@@ -369,10 +369,6 @@ public class SubmissaoService {
 
             confrontoRepository.save(confronto);
         }
-
-        competicao.setStatusFase(StatusFase.EM_ANDAMENTO);
-
-        competicaoRepository.save(competicao);
     }
 
     // =========================

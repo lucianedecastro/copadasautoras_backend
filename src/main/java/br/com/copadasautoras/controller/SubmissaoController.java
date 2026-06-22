@@ -115,28 +115,6 @@ public class SubmissaoController {
     // =========================
 
     @Operation(
-            summary = "Gerar confrontos da fase",
-            description = """
-                    Sorteia pares de obras classificadas para a fase
-                    informada e sorteia uma jurada por par. Válido para
-                    OITAVAS, QUARTAS e SEMIFINAL — a FASE_32 é gerada
-                    pelo /competicao/iniciar e a FINAL não usa confrontos.
-
-                    Apenas ADMIN.
-                    """
-    )
-    @PostMapping("/confrontos/gerar/{fase}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> gerarConfrontos(
-            @PathVariable FaseCompeticao fase
-    ) {
-
-        submissaoService.gerarConfrontos(fase);
-
-        return ResponseEntity.ok().build();
-    }
-
-    @Operation(
             summary = "Resolver confronto",
             description = """
                     Define o vencedor de um confronto. Ferramenta de
