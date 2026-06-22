@@ -60,6 +60,14 @@ public class BancaService {
                     FaseCompeticao.FINAL
             );
 
+            // já votou? não tem mais nada pra ela avaliar — sem isso,
+            // as 2 finalistas continuariam aparecendo pra sempre, já
+            // que o voto não altera o status delas (só a revelação da
+            // campeã faz isso, depois que as 3 juradas já votaram).
+            if (votoFinalRepository.existsByBanca(usuarioLogado)) {
+                return List.of();
+            }
+
             return submissaoRepository
                     .findByFaseAtualAndStatus(
                             FaseCompeticao.FINAL,
