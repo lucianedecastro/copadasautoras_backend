@@ -4,6 +4,7 @@ import br.com.copadasautoras.dto.BancaClassificacaoRequestDTO;
 import br.com.copadasautoras.dto.BancaObraResponseDTO;
 import br.com.copadasautoras.dto.VotoFinalRequestDTO;
 import br.com.copadasautoras.entity.Competicao;
+import br.com.copadasautoras.entity.Confronto;
 import br.com.copadasautoras.entity.FaseCompeticao;
 import br.com.copadasautoras.entity.GrupoCompeticao;
 import br.com.copadasautoras.entity.Role;
@@ -12,6 +13,7 @@ import br.com.copadasautoras.entity.Submissao;
 import br.com.copadasautoras.entity.Usuario;
 import br.com.copadasautoras.entity.VotoFinal;
 import br.com.copadasautoras.repository.CompeticaoRepository;
+import br.com.copadasautoras.repository.ConfrontoRepository;
 import br.com.copadasautoras.repository.GrupoCompeticaoRepository;
 import br.com.copadasautoras.repository.SubmissaoRepository;
 import br.com.copadasautoras.repository.UsuarioRepository;
@@ -35,6 +37,7 @@ public class BancaService {
     private final UsuarioRepository usuarioRepository;
     private final CompeticaoRepository competicaoRepository;
     private final VotoFinalRepository votoFinalRepository;
+    private final ConfrontoRepository confrontoRepository;
 
     public List<BancaObraResponseDTO> minhasObras() {
 
@@ -46,9 +49,16 @@ public class BancaService {
         Competicao competicao =
                 obterCompeticao();
 
-        // FINAL = todas as juradas veem as 2 finalistas
+        // FINAL = apenas as 3 juradas sorteadas veem as 2 finalistas
         if (competicao.getFaseAtual()
                 == FaseCompeticao.FINAL) {
+
+            // valida que esta jurada foi sorteada pra FINAL
+            // (lança exceção se não houver grupo dela nessa fase)
+            obterGrupoDaBanca(
+                    usuarioLogado,
+                    FaseCompeticao.FINAL
+            );
 
             return submissaoRepository
                     .findByFaseAtualAndStatus(
@@ -62,7 +72,8 @@ public class BancaService {
 
         GrupoCompeticao grupo =
                 obterGrupoDaBanca(
-                        usuarioLogado
+                        usuarioLogado,
+                        competicao.getFaseAtual()
                 );
 
         return submissaoRepository
@@ -90,16 +101,17 @@ public class BancaService {
 
         validarBanca(usuarioLogado);
 
-        GrupoCompeticao grupo =
-                obterGrupoDaBanca(
-                        usuarioLogado
-                );
-
         Competicao competicao =
                 obterCompeticao();
 
         FaseCompeticao faseAtual =
                 competicao.getFaseAtual();
+
+        GrupoCompeticao grupo =
+                obterGrupoDaBanca(
+                        usuarioLogado,
+                        faseAtual
+                );
 
         // Filtra apenas as obras que estão de fato na fase atual da
         // competição e que ainda estão ativas — obras eliminadas podem
@@ -191,6 +203,23 @@ public class BancaService {
                     submissao
             );
         }
+
+        // FASE_32 é decisão em grupo de 4 (2 avançam) — não existe
+        // Confronto 1x1 pra sincronizar. Da OITAVAS em diante, cada
+        // grupo tem exatamente 2 obras (sorteadas pelo ConfrontoService),
+        // então sincronizamos o Confronto correspondente com o resultado.
+        if (quantidadePermitida == 1) {
+
+            Long idVencedor =
+                    request.classificadas()
+                            .get(0);
+
+            sincronizarConfronto(
+                    faseAtual,
+                    obrasGrupo,
+                    idVencedor
+            );
+        }
     }
 
     @Transactional
@@ -213,6 +242,12 @@ public class BancaService {
                     "A votação só é permitida durante a FINAL."
             );
         }
+
+        // valida que esta jurada foi sorteada pra FINAL
+        obterGrupoDaBanca(
+                usuarioLogado,
+                FaseCompeticao.FINAL
+        );
 
         if (votoFinalRepository
                 .existsByBanca(
@@ -285,18 +320,94 @@ public class BancaService {
     }
 
     private GrupoCompeticao obterGrupoDaBanca(
-            Usuario usuario
+            Usuario usuario,
+            FaseCompeticao fase
     ) {
 
         return grupoCompeticaoRepository
-                .findByBancaId(
-                        usuario.getId()
+                .findByBancaAndFase(
+                        usuario,
+                        fase
                 )
                 .orElseThrow(() ->
                         new RuntimeException(
-                                "Nenhum grupo encontrado para esta jurada"
+                                "Nenhum grupo encontrado para esta jurada nesta fase"
                         )
                 );
+    }
+
+    /**
+     * Atualiza o Confronto correspondente (vencedora + resolvido) quando
+     * a jurada decide um confronto 1x1 (qualquer fase a partir da OITAVAS).
+     * Se não existir Confronto pra esse par (ex: ainda não foi gerado),
+     * simplesmente não faz nada — o Confronto é só um espelho pra
+     * acompanhamento do admin, não bloqueia a classificação em si.
+     */
+    private void sincronizarConfronto(
+            FaseCompeticao fase,
+            List<Submissao> obrasGrupo,
+            Long idVencedor
+    ) {
+
+        if (obrasGrupo.size() != 2) {
+            return;
+        }
+
+        Long id1 =
+                obrasGrupo.get(0)
+                        .getId();
+
+        Long id2 =
+                obrasGrupo.get(1)
+                        .getId();
+
+        confrontoRepository
+                .findByFase(fase)
+                .stream()
+                .filter(c ->
+                        pertenceAoPar(c, id1, id2)
+                )
+                .findFirst()
+                .ifPresent(confronto -> {
+
+                    Submissao vencedora =
+                            obrasGrupo.stream()
+                                    .filter(s ->
+                                            s.getId().equals(idVencedor)
+                                    )
+                                    .findFirst()
+                                    .orElseThrow();
+
+                    confronto.setVencedora(
+                            vencedora
+                    );
+
+                    confronto.setResolvido(
+                            true
+                    );
+
+                    confrontoRepository.save(
+                            confronto
+                    );
+                });
+    }
+
+    private boolean pertenceAoPar(
+            Confronto confronto,
+            Long id1,
+            Long id2
+    ) {
+
+        Long casaId =
+                confronto.getCasa()
+                        .getId();
+
+        Long foraId =
+                confronto.getFora()
+                        .getId();
+
+        return (casaId.equals(id1) && foraId.equals(id2))
+                || (casaId.equals(id2) && foraId.equals(id1));
     }
 
     private BancaObraResponseDTO mapToDTO(

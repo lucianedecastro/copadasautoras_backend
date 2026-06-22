@@ -1,6 +1,8 @@
 package br.com.copadasautoras.controller;
 
+import br.com.copadasautoras.dto.FaseDetalheResponseDTO;
 import br.com.copadasautoras.entity.Competicao;
+import br.com.copadasautoras.entity.FaseCompeticao;
 import br.com.copadasautoras.entity.Submissao;
 import br.com.copadasautoras.service.CompeticaoService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -105,6 +107,28 @@ public class CompeticaoController {
 
         return ResponseEntity.ok(
                 service.revelarCampea()
+        );
+    }
+
+    // =========================
+    // 📋 DETALHAR FASE (CONFRONTOS, CLASSIFICADAS E ELIMINADAS)
+    // =========================
+    @Operation(
+            summary = "Detalhar fase",
+            description = """
+                    Retorna os confrontos gerados para a fase, além das
+                    obras classificadas e eliminadas dentro dela.
+                    Requer perfil ADMIN.
+                    """
+    )
+    @GetMapping("/fases/{fase}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<FaseDetalheResponseDTO> obterFase(
+            @PathVariable FaseCompeticao fase
+    ) {
+
+        return ResponseEntity.ok(
+                service.obterFase(fase)
         );
     }
 }
