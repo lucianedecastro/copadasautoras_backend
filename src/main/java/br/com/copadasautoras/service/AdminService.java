@@ -7,7 +7,9 @@ import br.com.copadasautoras.dto.UsuarioAdminResponseDTO;
 import br.com.copadasautoras.entity.*;
 import br.com.copadasautoras.repository.CompeticaoRepository;
 import br.com.copadasautoras.repository.ConfrontoRepository;
+import br.com.copadasautoras.repository.GrupoCompeticaoRepository;
 import br.com.copadasautoras.repository.UsuarioRepository;
+import br.com.copadasautoras.repository.VotoFinalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,6 +38,8 @@ public class AdminService {
     private final PasswordEncoder passwordEncoder;
     private final EventoRepository eventoRepository;
     private final SubmissaoRepository submissaoRepository;
+    private final GrupoCompeticaoRepository grupoCompeticaoRepository;
+    private final VotoFinalRepository votoFinalRepository;
 
     // =========================
     // 👤 GERENCIAMENTO DE USUÁRIOS
@@ -265,28 +269,69 @@ public class AdminService {
 
         Competicao competicao = obterCompeticao();
 
-        List<Confronto> confrontos =
-                confrontoRepository.findByFase(
-                        competicao.getFaseAtual()
-                );
+        FaseCompeticao fase = competicao.getFaseAtual();
 
-        int total = confrontos.size();
+        int total;
+        int resolvidos;
 
-        int resolvidos = (int) confrontos.stream()
-                .filter(c ->
-                        Boolean.TRUE.equals(
-                                c.getResolvido()
-                        )
-                )
-                .count();
+        if (fase == FaseCompeticao.FASE_32) {
+
+            // FASE_32 usa grupos de 4 obras, não confrontos 1x1 —
+            // cada grupo "concluído" significa que a jurada já decidiu
+            // (nenhuma obra do grupo segue EM_COMPETICAO).
+            List<GrupoCompeticao> grupos =
+                    grupoCompeticaoRepository.findByFase(fase);
+
+            total = grupos.size();
+
+            resolvidos = (int) grupos.stream()
+                    .filter(this::grupoJaDecidido)
+                    .count();
+
+        } else if (fase == FaseCompeticao.FINAL) {
+
+            // FINAL não usa confronto nem grupo pareado — são 3 juradas
+            // sorteadas, cada uma vota uma vez.
+            total = grupoCompeticaoRepository
+                    .findByFase(fase)
+                    .size();
+
+            resolvidos = (int) votoFinalRepository.count();
+
+        } else {
+
+            // OITAVAS, QUARTAS, SEMIFINAL — modelo de confronto 1x1.
+            List<Confronto> confrontos =
+                    confrontoRepository.findByFase(fase);
+
+            total = confrontos.size();
+
+            resolvidos = (int) confrontos.stream()
+                    .filter(c ->
+                            Boolean.TRUE.equals(
+                                    c.getResolvido()
+                            )
+                    )
+                    .count();
+        }
 
         return new AdminDashboardDTO(
-                competicao.getFaseAtual(),
+                fase,
                 competicao.getStatusFase(),
                 total,
                 resolvidos,
                 total - resolvidos
         );
+    }
+
+    private boolean grupoJaDecidido(GrupoCompeticao grupo) {
+
+        return submissaoRepository
+                .findByGrupoId(grupo.getId())
+                .stream()
+                .noneMatch(s ->
+                        s.getStatus() == StatusSubmissao.EM_COMPETICAO
+                );
     }
 
     // =========================
