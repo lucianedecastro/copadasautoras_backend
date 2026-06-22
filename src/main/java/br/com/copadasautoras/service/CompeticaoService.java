@@ -107,8 +107,10 @@ public class CompeticaoService {
         Collections.shuffle(submissoes);
         Collections.shuffle(bancas);
 
-        NomeGrupo[] grupos =
-                NomeGrupo.values();
+        NomeGrupo[] grupos = {
+                NomeGrupo.A, NomeGrupo.B, NomeGrupo.C, NomeGrupo.D,
+                NomeGrupo.E, NomeGrupo.F, NomeGrupo.G, NomeGrupo.H
+        };
 
         int indexSubmissao = 0;
 

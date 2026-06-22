@@ -299,6 +299,12 @@ public class SubmissaoService {
             );
         }
 
+        // Grupos de uma geração anterior desta mesma fase (ex: de uma
+        // regeneração). Serão removidos só depois que as obras forem
+        // reatribuídas aos grupos novos, pra não violar FK.
+        List<GrupoCompeticao> gruposAntigos =
+                grupoCompeticaoRepository.findByFase(fase);
+
         List<Submissao> lista =
                 submissaoRepository.findByFaseAtualAndStatus(
                         fase,
@@ -335,7 +341,14 @@ public class SubmissaoService {
         Collections.shuffle(lista);
         Collections.shuffle(bancas);
 
-        NomeGrupo[] nomes = NomeGrupo.values();
+        // Nomenclatura de confronto (mata-mata), separada das letras
+        // A-H usadas pelos grupos de 4 da FASE_32.
+        NomeGrupo[] nomes = {
+                NomeGrupo.CONFRONTO_1, NomeGrupo.CONFRONTO_2,
+                NomeGrupo.CONFRONTO_3, NomeGrupo.CONFRONTO_4,
+                NomeGrupo.CONFRONTO_5, NomeGrupo.CONFRONTO_6,
+                NomeGrupo.CONFRONTO_7, NomeGrupo.CONFRONTO_8
+        };
 
         for (int i = 0; i < totalConfrontos; i++) {
 
@@ -368,6 +381,12 @@ public class SubmissaoService {
                             .build();
 
             confrontoRepository.save(confronto);
+        }
+
+        // Agora sim — nenhuma obra aponta mais pros grupos antigos
+        // (todas foram reatribuídas aos grupos novos acima).
+        if (!gruposAntigos.isEmpty()) {
+            grupoCompeticaoRepository.deleteAll(gruposAntigos);
         }
     }
 
