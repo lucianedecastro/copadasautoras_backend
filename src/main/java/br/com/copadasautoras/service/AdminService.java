@@ -458,6 +458,40 @@ public class AdminService {
     }
 
     // =========================
+    // 🏆 PUBLICAR CHAVEAMENTO
+    // =========================
+
+    @Transactional
+    public void publicarChaveamento() {
+
+        Competicao competicao =
+                obterCompeticao();
+
+        competicao.setChaveamentoPublicado(
+                true
+        );
+
+        competicaoRepository.save(
+                competicao
+        );
+    }
+
+    @Transactional
+    public void despublicarChaveamento() {
+
+        Competicao competicao =
+                obterCompeticao();
+
+        competicao.setChaveamentoPublicado(
+                false
+        );
+
+        competicaoRepository.save(
+                competicao
+        );
+    }
+
+    // =========================
 // 🏆 SELEÇÃO EDITORIAL
 // =========================
 

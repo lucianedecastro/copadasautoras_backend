@@ -54,6 +54,11 @@ public class SecurityConfig {
                         // 🔓 públicas
                         .requestMatchers("/auth/**").permitAll()
 
+                        // 🔓 chaveamento/finalistas públicos — visibilidade real
+                        // é controlada pelo campo Competicao.chaveamentoPublicado,
+                        // não pela autenticação.
+                        .requestMatchers("/publico/**").permitAll()
+
                         // 🔒 admin
                         .requestMatchers("/admin/**").hasRole("ADMIN")
 

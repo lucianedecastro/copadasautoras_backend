@@ -277,5 +277,39 @@ public class AdminController {
 
         return ResponseEntity.ok().build();
     }
-}
 
+    // =========================
+    // 🏆 PUBLICAR CHAVEAMENTO
+    // =========================
+
+    @Operation(
+            summary = "Publicar chaveamento",
+            description = """
+                    Torna pública a página de chaveamento/finalistas
+                    (GET /publico/chaveamento). Pode ser ativado em
+                    qualquer fase — a página pública mostra o que já
+                    existe no banco até o momento.
+                    """
+    )
+    @PostMapping("/publicar-chaveamento")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> publicarChaveamento() {
+
+        adminService.publicarChaveamento();
+
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(
+            summary = "Despublicar chaveamento",
+            description = "Esconde novamente a página pública de chaveamento/finalistas."
+    )
+    @PostMapping("/despublicar-chaveamento")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> despublicarChaveamento() {
+
+        adminService.despublicarChaveamento();
+
+        return ResponseEntity.ok().build();
+    }
+}

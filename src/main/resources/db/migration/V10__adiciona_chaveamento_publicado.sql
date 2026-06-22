@@ -1,0 +1,1 @@
+ALTER TABLE competicao ADD COLUMN chaveamento_publicado BOOLEAN NOT NULL DEFAULT FALSE;

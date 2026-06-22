@@ -22,6 +22,14 @@ public class Competicao {
     @Enumerated(EnumType.STRING)
     private StatusFase statusFase;
 
+    /**
+     * Controla se a página pública de chaveamento/finalistas está
+     * visível. Ativado manualmente pelo admin (botão "Publicar
+     * Chaveamento"), independente da fase técnica da competição.
+     */
+    @Column(name = "chaveamento_publicado", nullable = false)
+    private Boolean chaveamentoPublicado;
+
     @PrePersist
     public void prePersist() {
         if (faseAtual == null) {
@@ -29,6 +37,9 @@ public class Competicao {
         }
         if (statusFase == null) {
             statusFase = StatusFase.NAO_INICIADA;
+        }
+        if (chaveamentoPublicado == null) {
+            chaveamentoPublicado = false;
         }
     }
 }
