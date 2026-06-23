@@ -556,47 +556,178 @@ public class SubmissaoService {
             FaseCompeticao fase
     ) {
 
+        if (fase == FaseCompeticao.FASE_32) {
+            return obterFaseGrupos(fase);
+        }
+
+        if (fase == FaseCompeticao.FINAL) {
+            return obterFaseFinal();
+        }
+
+        return obterFaseConfrontos(fase);
+    }
+
+    private FaseResponseDTO obterFaseConfrontos(
+            FaseCompeticao fase
+    ) {
+
         List<Confronto> confrontos =
-                confrontoRepository.findByFase(
-                        fase
-                );
+                confrontoRepository.findByFase(fase);
 
         List<ConfrontoResponseDTO> confrontoDTOs =
                 confrontos.stream()
                         .map(this::mapConfronto)
                         .toList();
 
-        List<Submissao> lista =
-                submissaoRepository.findByFaseAtual(
-                        fase
-                );
-
+        // Classificadas/eliminadas derivadas direto do resultado de cada
+        // confronto — não do faseAtual da obra, que já avança pra próxima
+        // fase assim que ela é classificada (e por isso some do
+        // findByFaseAtual da fase atual, deixando essa lista sempre vazia).
         List<SubmissaoResponseDTO> classificadas =
-                lista.stream()
-                        .filter(s ->
-                                s.getStatus()
-                                        == StatusSubmissao.CLASSIFICADA
-                                        || s.getStatus()
-                                        == StatusSubmissao.CAMPEA
-                        )
+                confrontos.stream()
+                        .map(Confronto::getVencedora)
+                        .filter(Objects::nonNull)
                         .map(this::mapToResponse)
                         .toList();
 
         List<SubmissaoResponseDTO> eliminadas =
-                lista.stream()
-                        .filter(s ->
-                                s.getStatus()
-                                        == StatusSubmissao.ELIMINADA
+                confrontos.stream()
+                        .filter(c -> c.getVencedora() != null)
+                        .map(c ->
+                                c.getVencedora().getId().equals(c.getCasa().getId())
+                                        ? c.getFora()
+                                        : c.getCasa()
                         )
+                        .filter(Objects::nonNull)
                         .map(this::mapToResponse)
                         .toList();
 
         return new FaseResponseDTO(
                 fase,
-                lista.size(),
+                confrontoDTOs.size(),
                 confrontoDTOs,
                 classificadas,
-                eliminadas
+                eliminadas,
+                List.of()
+        );
+    }
+
+    private FaseResponseDTO obterFaseGrupos(
+            FaseCompeticao fase
+    ) {
+
+        // FASE_32 não usa Confronto (são grupos de 4 obras, não 1x1) —
+        // monta os grupos completos pro admin ver quem avançou de cada.
+        List<GrupoCompeticao> gruposEntities =
+                grupoCompeticaoRepository.findByFase(fase);
+
+        List<GrupoPublicoDTO> grupos =
+                gruposEntities.stream()
+                        .sorted(Comparator.comparing(g -> g.getNomeGrupo().name()))
+                        .map(this::mapGrupo)
+                        .toList();
+
+        List<SubmissaoResponseDTO> classificadas = new ArrayList<>();
+        List<SubmissaoResponseDTO> eliminadas = new ArrayList<>();
+
+        for (GrupoCompeticao grupo : gruposEntities) {
+
+            for (Submissao s : submissaoRepository.findByGrupoId(grupo.getId())) {
+
+                if (s.getStatus() == StatusSubmissao.CLASSIFICADA
+                        || s.getStatus() == StatusSubmissao.CAMPEA) {
+
+                    classificadas.add(mapToResponse(s));
+
+                } else if (s.getStatus() == StatusSubmissao.ELIMINADA) {
+
+                    eliminadas.add(mapToResponse(s));
+                }
+            }
+        }
+
+        return new FaseResponseDTO(
+                fase,
+                0,
+                List.of(),
+                classificadas,
+                eliminadas,
+                grupos
+        );
+    }
+
+    private FaseResponseDTO obterFaseFinal() {
+
+        // FINAL não usa Confronto nem GrupoCompeticao pareado — são 3
+        // juradas sorteadas vendo as mesmas 2 obras e votando. Mesmo
+        // truque: junta CLASSIFICADA (ainda em disputa) + ELIMINADA
+        // (perdeu) + CAMPEA (ganhou), que juntas são sempre as 2
+        // finalistas, antes ou depois da revelação.
+        List<Submissao> finalistas = new ArrayList<>();
+
+        finalistas.addAll(
+                submissaoRepository.findByFaseAtualAndStatus(
+                        FaseCompeticao.FINAL, StatusSubmissao.CLASSIFICADA
+                )
+        );
+        finalistas.addAll(
+                submissaoRepository.findByFaseAtualAndStatus(
+                        FaseCompeticao.FINAL, StatusSubmissao.ELIMINADA
+                )
+        );
+        finalistas.addAll(
+                submissaoRepository.findByFaseAtualAndStatus(
+                        FaseCompeticao.CAMPEA, StatusSubmissao.CAMPEA
+                )
+        );
+
+        List<SubmissaoResponseDTO> classificadas =
+                finalistas.stream()
+                        .filter(s ->
+                                s.getStatus() == StatusSubmissao.CLASSIFICADA
+                                        || s.getStatus() == StatusSubmissao.CAMPEA
+                        )
+                        .map(this::mapToResponse)
+                        .toList();
+
+        List<SubmissaoResponseDTO> eliminadas =
+                finalistas.stream()
+                        .filter(s -> s.getStatus() == StatusSubmissao.ELIMINADA)
+                        .map(this::mapToResponse)
+                        .toList();
+
+        // Sintetiza 1 "confronto" (id -1, não existe no banco) só pra
+        // reaproveitar a mesma tabela casa/fora/vencedora que o admin
+        // já usa pras outras fases.
+        List<ConfrontoResponseDTO> confrontos = List.of();
+
+        if (finalistas.size() == 2) {
+
+            Submissao casa = finalistas.get(0);
+            Submissao fora = finalistas.get(1);
+
+            Submissao vencedora =
+                    finalistas.stream()
+                            .filter(s -> s.getStatus() == StatusSubmissao.CAMPEA)
+                            .findFirst()
+                            .orElse(null);
+
+            confrontos = List.of(new ConfrontoResponseDTO(
+                    -1L,
+                    mapToResponse(casa),
+                    mapToResponse(fora),
+                    vencedora != null ? mapToResponse(vencedora) : null,
+                    vencedora != null
+            ));
+        }
+
+        return new FaseResponseDTO(
+                FaseCompeticao.FINAL,
+                confrontos.size(),
+                confrontos,
+                classificadas,
+                eliminadas,
+                List.of()
         );
     }
 
@@ -662,6 +793,28 @@ public class SubmissaoService {
                         : null,
                 baseUrl
                         + "/arquivo-completo"
+        );
+    }
+
+    private GrupoPublicoDTO mapGrupo(
+            GrupoCompeticao grupo
+    ) {
+
+        List<ObraPublicaDTO> obras =
+                submissaoRepository.findByGrupoId(grupo.getId())
+                        .stream()
+                        .map(s -> new ObraPublicaDTO(
+                                s.getId(),
+                                s.getTitulo(),
+                                s.getCategoria(),
+                                s.getStatus() == StatusSubmissao.CLASSIFICADA
+                                        || s.getStatus() == StatusSubmissao.CAMPEA
+                        ))
+                        .toList();
+
+        return new GrupoPublicoDTO(
+                grupo.getNomeGrupo().name(),
+                obras
         );
     }
 }

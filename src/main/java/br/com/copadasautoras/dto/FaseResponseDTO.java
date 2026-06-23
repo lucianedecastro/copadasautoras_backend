@@ -12,6 +12,10 @@ public record FaseResponseDTO(
         List<ConfrontoResponseDTO> confrontos,
 
         List<SubmissaoResponseDTO> classificadas,
-        List<SubmissaoResponseDTO> eliminadas
+        List<SubmissaoResponseDTO> eliminadas,
+
+        // Só preenchido na FASE_32 (grupos de 4 obras, sem confronto 1x1).
+        // Nas demais fases vem como lista vazia.
+        List<GrupoPublicoDTO> grupos
 
 ) {}
