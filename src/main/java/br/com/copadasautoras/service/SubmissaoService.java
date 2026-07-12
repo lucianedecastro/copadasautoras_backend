@@ -257,6 +257,291 @@ public class SubmissaoService {
     }
 
     // =========================
+    // JANELA DE EDIÇÃO
+    // =========================
+
+    /**
+     * Recupera a submissão da autora autenticada e verifica se ela ainda
+     * pode ser alterada.
+     *
+     * A janela de edição é a MESMA janela de criação:
+     *   - status == SUBMETIDA  → a curadoria ainda não decidiu sobre a obra
+     *   - evento ativo         → o prazo de inscrições não encerrou
+     *
+     * Depois que a obra entra em competição, trocar o arquivo corromperia
+     * a avaliação cega (Art. 17) e excluí-la quebraria o chaveamento.
+     * O portão é o mesmo dos dois lados: só se desfaz enquanto ainda
+     * daria para fazer.
+     */
+    private Submissao buscarSubmissaoEditavel() {
+
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        Autora autora = autoraRepository
+                .findByUsuarioEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Autora autenticada não encontrada."
+                        )
+                );
+
+        Submissao submissao = submissaoRepository
+                .findFirstByAutoraId(autora.getId())
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Você ainda não possui uma obra inscrita."
+                        )
+                );
+
+        if (submissao.getStatus() != StatusSubmissao.SUBMETIDA) {
+            throw new RuntimeException(
+                    "Sua obra já passou pela curadoria e está em competição. "
+                            + "Não é mais possível alterá-la ou excluí-la. "
+                            + "Fale com a organização."
+            );
+        }
+
+        if (!Boolean.TRUE.equals(submissao.getEvento().getAtivo())) {
+            throw new RuntimeException(
+                    "O prazo de inscrições encerrou. "
+                            + "Não é mais possível alterar ou excluir sua obra."
+            );
+        }
+
+        return submissao;
+    }
+
+    // =========================
+    // EDITAR DADOS DA SUBMISSÃO
+    // =========================
+
+    /**
+     * Corrige os dados da obra já submetida: título, categoria, descrição
+     * e tipo de exibição.
+     *
+     * Os cinco aceites do Art. 19 NÃO são pedidos de novo. Eles foram
+     * declarados no envio e continuam valendo — corrigir um título não é
+     * declarar novamente a autoria.
+     *
+     * Mas o termo de aceite imprime Título, Categoria e Modalidade de
+     * exibição. Se a autora corrige o título e o termo continua exibindo o
+     * antigo, o documento jurídico passa a mentir. Por isso ele é regerado
+     * aqui, com o mesmo AceiteTermo (mesmos aceites, mesma versão).
+     */
+    @Transactional
+    public SubmissaoResponseDTO editarMinhaSubmissao(
+            SubmissaoUpdateDTO dto
+    ) {
+
+        Submissao submissao = buscarSubmissaoEditavel();
+
+        submissao.setTitulo(dto.titulo());
+        submissao.setCategoria(dto.categoria());
+        submissao.setDescricao(dto.descricao());
+        submissao.setTipoExibicao(dto.tipoExibicao());
+
+        submissao = submissaoRepository.save(submissao);
+
+        regerarTermo(submissao);
+
+        return mapToResponse(submissao);
+    }
+
+    /**
+     * Regera o PDF do termo com os dados atualizados da obra.
+     *
+     * Falha aqui não derruba a edição: o registro de aceite continua no
+     * banco, íntegro, e ele é a fonte de verdade — o PDF é uma
+     * materialização dele. Um PDF desatualizado é um problema a corrigir;
+     * uma edição que não salva é um problema para a autora agora.
+     * Mesmo critério do criar(), que já trata a geração do termo como
+     * best-effort.
+     */
+    private void regerarTermo(Submissao submissao) {
+
+        aceiteTermoRepository
+                .findBySubmissaoId(submissao.getId())
+                .ifPresent(aceite -> {
+
+                    String urlAntiga = aceite.getTermoPdfUrl();
+
+                    try {
+                        byte[] pdfBytes = termoService.gerarTermoPdf(
+                                aceite,
+                                submissao
+                        );
+
+                        String urlNova = storageService.uploadTermoPdf(
+                                pdfBytes,
+                                submissao.getId()
+                        );
+
+                        aceite.setTermoPdfUrl(urlNova);
+                        aceiteTermoRepository.save(aceite);
+
+                        // Só apaga o antigo depois que o novo está salvo.
+                        apagarDoStorage(urlAntiga, "termo anterior da submissão "
+                                + submissao.getId());
+
+                    } catch (Exception e) {
+                        System.err.println(
+                                "Aviso: falha ao regerar o termo da submissão "
+                                        + submissao.getId()
+                                        + ": "
+                                        + e.getMessage()
+                        );
+                    }
+                });
+    }
+
+    // =========================
+    // SUBSTITUIR ARQUIVOS (Art. 18 §3º)
+    // =========================
+
+    /**
+     * Troca o arquivo completo e/ou o arquivo público da submissão,
+     * preservando o id e a dataSubmissao originais.
+     *
+     * Preserva de propósito: recriar a submissão daria um id novo e uma
+     * data de envio nova — o que poderia jogar a autora para depois do
+     * prazo e alterar a ordem de inscrição.
+     *
+     * A ordem das operações importa. O upload novo vem PRIMEIRO: se ele
+     * falhar, nada mudou. Só depois de o banco estar consistente é que
+     * apagamos o arquivo antigo — e uma falha ali vira log, não erro,
+     * porque o pior resultado possível é um arquivo órfão no Cloudinary,
+     * nunca uma submissão sem arquivo.
+     */
+    @Transactional
+    public SubmissaoResponseDTO substituirArquivos(
+            MultipartFile arquivoCompleto,
+            MultipartFile arquivoPublico
+    ) {
+
+        boolean trocaCompleto =
+                arquivoCompleto != null && !arquivoCompleto.isEmpty();
+
+        boolean trocaPublico =
+                arquivoPublico != null && !arquivoPublico.isEmpty();
+
+        if (!trocaCompleto && !trocaPublico) {
+            throw new RuntimeException(
+                    "Envie ao menos um arquivo para substituir."
+            );
+        }
+
+        Submissao submissao = buscarSubmissaoEditavel();
+        Long autoraId = submissao.getAutora().getId();
+
+        String urlAntigaCompleta = submissao.getArquivoCompletoUrl();
+        String urlAntigaPublica  = submissao.getArquivoPublicoUrl();
+
+        // 1. Sobe o novo. Se falhar aqui, nada foi alterado.
+        if (trocaCompleto) {
+            submissao.setArquivoCompletoUrl(
+                    storageService.uploadObra(arquivoCompleto, autoraId)
+            );
+        }
+
+        if (trocaPublico) {
+            submissao.setArquivoPublicoUrl(
+                    storageService.uploadObraPublica(arquivoPublico, autoraId)
+            );
+        }
+
+        // 2. Banco consistente.
+        submissao = submissaoRepository.save(submissao);
+
+        // 3. Só então apaga o antigo. Falha aqui não desfaz a troca.
+        if (trocaCompleto) {
+            apagarDoStorage(urlAntigaCompleta, "arquivo completo anterior");
+        }
+
+        if (trocaPublico) {
+            apagarDoStorage(urlAntigaPublica, "arquivo público anterior");
+        }
+
+        return mapToResponse(submissao);
+    }
+
+    // =========================
+    // EXCLUIR MINHA SUBMISSÃO
+    // =========================
+
+    /**
+     * Exclui a submissão da autora autenticada, junto com o AceiteTermo
+     * e todos os arquivos no Cloudinary.
+     *
+     * O termo é apagado junto: se a obra não existe, o aceite dela não
+     * tem o que comprovar. Não sobra rastro — e é isso mesmo que se
+     * espera, inclusive do ponto de vista de proteção de dados.
+     */
+    @Transactional
+    public void excluirMinhaSubmissao() {
+
+        Submissao submissao = buscarSubmissaoEditavel();
+        Long submissaoId = submissao.getId();
+
+        // Guarda extra: se por algum caminho a obra já estiver num grupo,
+        // não é seguro apagá-la, mesmo que o status ainda diga SUBMETIDA.
+        if (submissao.getGrupo() != null) {
+            throw new RuntimeException(
+                    "Sua obra já foi sorteada em um grupo da competição. "
+                            + "Fale com a organização."
+            );
+        }
+
+        // Guarda as URLs antes de apagar as linhas do banco.
+        List<String> arquivosParaApagar = new ArrayList<>();
+        arquivosParaApagar.add(submissao.getArquivoCompletoUrl());
+        arquivosParaApagar.add(submissao.getArquivoPublicoUrl());
+
+        aceiteTermoRepository
+                .findBySubmissaoId(submissaoId)
+                .ifPresent(aceite -> {
+                    arquivosParaApagar.add(aceite.getTermoPdfUrl());
+                    aceiteTermoRepository.delete(aceite);
+                });
+
+        submissaoRepository.delete(submissao);
+
+        // O Cloudinary não participa da transação. Se o banco desse
+        // rollback depois de apagarmos os arquivos, a linha continuaria
+        // existindo apontando para arquivos inexistentes — o pior cenário.
+        // Por isso: banco primeiro, arquivos por último, falha vira log.
+        arquivosParaApagar.forEach(url ->
+                apagarDoStorage(url, "arquivo da submissão " + submissaoId)
+        );
+    }
+
+    /**
+     * Apaga do Cloudinary sem derrubar a transação.
+     *
+     * Um arquivo órfão é um incômodo de faxina. Uma submissão sem arquivo,
+     * ou uma exclusão que falha pela metade, é um problema de verdade.
+     */
+    private void apagarDoStorage(String url, String descricao) {
+
+        if (url == null || url.isBlank()) {
+            return;
+        }
+
+        try {
+            storageService.deletar(url);
+        } catch (Exception e) {
+            System.err.println(
+                    "Aviso: falha ao apagar do Cloudinary ("
+                            + descricao
+                            + "): "
+                            + e.getMessage()
+            );
+        }
+    }
+
+    // =========================
     // GERAR CONFRONTOS
     // =========================
     @Transactional

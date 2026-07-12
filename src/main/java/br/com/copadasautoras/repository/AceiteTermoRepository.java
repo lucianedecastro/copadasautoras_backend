@@ -13,4 +13,13 @@ public interface AceiteTermoRepository extends JpaRepository<AceiteTermo, Long> 
      * Confirmado via TermoService: aceite.getAutora().getUsuario().getEmail()
      */
     Optional<AceiteTermo> findByAutora_Usuario_Email(String email);
+
+    /**
+     * Busca o AceiteTermo vinculado a uma submissão.
+     *
+     * Necessário na exclusão: o AceiteTermo tem FK para a Submissao, então
+     * ele precisa ser apagado antes dela. Buscar pela autora não serve —
+     * ela pode ter tido outras submissões em outras edições da Copa.
+     */
+    Optional<AceiteTermo> findBySubmissaoId(Long submissaoId);
 }
