@@ -12,6 +12,7 @@ spring:
       connection-timeout: 30000
 
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: validate
     show-sql: false
@@ -42,6 +43,10 @@ management:
   endpoint:
     health:
       show-details: always
+
+  health:
+    db:
+      enabled: false
 
 springdoc:
   swagger-ui:
