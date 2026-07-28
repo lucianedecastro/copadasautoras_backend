@@ -24,7 +24,7 @@ public class PasswordResetService {
     private final PasswordEncoder passwordEncoder;
 
     // URL da página de redefinição no frontend. O token vai como parâmetro.
-    @Value("${app.reset-senha.url:https://copadasautoras.com.br/redefinir-senha}")
+    @Value("${app.reset-senha.url:https://www.copadasautoras.com.br/auth/redefinir-senha.html}")
     private String baseResetUrl;
 
     @Transactional
