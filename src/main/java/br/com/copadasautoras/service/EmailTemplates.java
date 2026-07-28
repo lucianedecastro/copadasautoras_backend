@@ -18,6 +18,30 @@ public class EmailTemplates {
                         """.formatted(escapar(nomeAutora)));
     }
 
+    public String resetSenha(String nomeAutora, String linkReset) {
+        return BASE.replace("{{titulo}}", "Redefinição de senha")
+                .replace("{{conteudo}}", """
+                        <p style="margin:0 0 16px;">Olá, <strong>%s</strong>,</p>
+                        <p style="margin:0 0 16px;">Recebemos um pedido para redefinir
+                        a senha da sua conta na <strong>Copa das Autoras</strong>.
+                        Clique no botão abaixo para criar uma nova senha:</p>
+                        <p style="margin:0 0 24px;">
+                          <a href="%s"
+                             style="display:inline-block; background-color:#7A1F35;
+                                    color:#ffffff; text-decoration:none;
+                                    padding:12px 28px; font-family:Georgia,serif;
+                                    font-size:15px;">Redefinir minha senha</a>
+                        </p>
+                        <p style="margin:0 0 16px; font-size:14px; color:#555;">
+                        Este link expira em 1 hora e só pode ser usado uma vez.
+                        Se o botão não funcionar, copie e cole este endereço no
+                        navegador:<br>%s</p>
+                        <p style="margin:0; font-size:14px; color:#555;">Se você não
+                        pediu esta redefinição, pode ignorar este e-mail com
+                        segurança — a sua senha continua a mesma.</p>
+                        """.formatted(escapar(nomeAutora), linkReset, linkReset));
+    }
+
     private String escapar(String texto) {
         if (texto == null) return "";
         return texto.replace("&", "&amp;")
