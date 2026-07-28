@@ -6,6 +6,7 @@ import br.com.copadasautoras.repository.*;
 import br.com.copadasautoras.storage.CloudinaryStorageService;
 import br.com.copadasautoras.termo.TermoService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -27,6 +28,7 @@ public class SubmissaoService {
     private final GrupoCompeticaoRepository grupoCompeticaoRepository;
     private final CloudinaryStorageService storageService;
     private final TermoService termoService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // =========================
     // CRIAR SUBMISSÃO
@@ -205,6 +207,14 @@ public class SubmissaoService {
 
             aceiteTermoRepository
                     .save(aceite);
+
+            // Agenda o e-mail do termo para DEPOIS do commit da transação.
+            // Só chega aqui se o PDF foi gerado — o pdfBytes vai anexo.
+            eventPublisher.publishEvent(new SubmissaoRegistradaEvent(
+                    email,
+                    autora.getNomeExibicao(),
+                    pdfBytes
+            ));
 
         } catch (Exception e) {
 
