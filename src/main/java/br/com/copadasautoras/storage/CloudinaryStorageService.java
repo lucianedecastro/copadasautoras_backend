@@ -87,6 +87,67 @@ public class CloudinaryStorageService {
     }
 
     // =========================
+    // UPLOAD DE MÍDIA DO LANCE (newsroom)
+    // =========================
+    /**
+     * Foto/vídeo próprio da Copa, exibido publicamente na timeline.
+     *
+     * Diferente das obras (raw + authenticated), a mídia do newsroom é
+     * pública e pode ser imagem ou vídeo — por isso resource_type "auto"
+     * (o Cloudinary detecta) e access_mode "public".
+     */
+    public String uploadMidiaLance(MultipartFile arquivo) {
+        try {
+            String publicId = "lances/" + UUID.randomUUID();
+            Map<?, ?> resultado = cloudinary.uploader().upload(
+                    arquivo.getBytes(),
+                    ObjectUtils.asMap(
+                            "public_id",     publicId,
+                            "resource_type", "auto",
+                            "access_mode",   "public",
+                            "use_filename",  false,
+                            "overwrite",     false
+                    )
+            );
+            return (String) resultado.get("secure_url");
+        } catch (IOException e) {
+            throw new RuntimeException("Erro ao fazer upload da mídia do lance: " + e.getMessage(), e);
+        }
+    }
+
+    // =========================
+    // DELETAR MÍDIA DO LANCE
+    // =========================
+    /**
+     * Apaga uma mídia do newsroom no Cloudinary.
+     *
+     * O resource_type é inferido pela URL (image/video/raw), porque a mídia
+     * do lance pode ser foto ou vídeo — ao contrário das obras, sempre "raw".
+     * Para imagem/vídeo, o public_id vai sem extensão (o destroy exige assim).
+     */
+    public void deletarMidiaLance(String url) {
+        try {
+            String resourceType = inferirResourceType(url);
+            String publicId = extrairPublicId(url);
+
+            if (!"raw".equals(resourceType)) {
+                publicId = publicId.replaceAll("\\.[^./]+$", "");
+            }
+
+            cloudinary.uploader().destroy(publicId,
+                    ObjectUtils.asMap("resource_type", resourceType));
+        } catch (IOException e) {
+            throw new RuntimeException("Erro ao deletar mídia do lance: " + e.getMessage(), e);
+        }
+    }
+
+    private String inferirResourceType(String url) {
+        if (url.contains("/image/")) return "image";
+        if (url.contains("/video/")) return "video";
+        return "raw";
+    }
+
+    // =========================
     // DOWNLOAD — stream pelo backend
     // =========================
     /**
