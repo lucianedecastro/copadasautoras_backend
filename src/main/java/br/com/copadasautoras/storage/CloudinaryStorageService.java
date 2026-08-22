@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -87,7 +88,7 @@ public class CloudinaryStorageService {
     }
 
     // =========================
-    // UPLOAD DE MÍDIA DO LANCE (newsroom)
+    // UPLOAD DE MÍDIA DO LANCE (newsroom) — via backend
     // =========================
     /**
      * Foto/vídeo próprio da Copa, exibido publicamente na timeline.
@@ -95,6 +96,10 @@ public class CloudinaryStorageService {
      * Diferente das obras (raw + authenticated), a mídia do newsroom é
      * pública e pode ser imagem ou vídeo — por isso resource_type "auto"
      * (o Cloudinary detecta) e access_mode "public".
+     *
+     * OBS: este caminho passa o arquivo pelo backend (Render), que tem
+     * limite de tamanho de request. Para áudio/vídeo maiores, use o
+     * upload DIRETO (assinarUploadLance + registro da URL).
      */
     public String uploadMidiaLance(MultipartFile arquivo) {
         try {
@@ -113,6 +118,44 @@ public class CloudinaryStorageService {
         } catch (IOException e) {
             throw new RuntimeException("Erro ao fazer upload da mídia do lance: " + e.getMessage(), e);
         }
+    }
+
+    // =========================
+    // ASSINATURA PARA UPLOAD DIRETO (newsroom)
+    // =========================
+    /**
+     * Gera os dados assinados para o navegador enviar o arquivo DIRETO ao
+     * Cloudinary, sem passar pelo backend (evita o limite de request do
+     * Render — o famoso 413 em áudio/vídeo grandes).
+     *
+     * O api_secret NUNCA sai daqui: ele só é usado para calcular a
+     * assinatura. O navegador recebe apenas cloud_name, api_key (públicos),
+     * timestamp, public_id e a assinatura — o suficiente para um upload
+     * autorizado e nada além disso.
+     *
+     * Só timestamp e public_id são assinados; portanto o navegador deve
+     * enviar exatamente esses dois parâmetros (além de file, api_key e
+     * signature) para a assinatura conferir no Cloudinary.
+     */
+    public Map<String, Object> assinarUploadLance() {
+
+        long timestamp = System.currentTimeMillis() / 1000L;
+        String publicId = "lances/" + UUID.randomUUID();
+
+        Map<String, Object> paramsToSign = new HashMap<>();
+        paramsToSign.put("timestamp", timestamp);
+        paramsToSign.put("public_id", publicId);
+
+        String signature = cloudinary.apiSignRequest(
+                paramsToSign, cloudinary.config.apiSecret);
+
+        Map<String, Object> resposta = new HashMap<>();
+        resposta.put("cloud_name", cloudinary.config.cloudName);
+        resposta.put("api_key",    cloudinary.config.apiKey);
+        resposta.put("timestamp",  timestamp);
+        resposta.put("public_id",  publicId);
+        resposta.put("signature",  signature);
+        return resposta;
     }
 
     // =========================

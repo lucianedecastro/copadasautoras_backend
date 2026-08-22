@@ -16,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -176,7 +177,7 @@ public class LanceService {
     }
 
     // =========================
-    // ADMIN — MÍDIAS (UPLOAD)
+    // ADMIN — MÍDIAS (UPLOAD via backend)
     // =========================
 
     @Transactional
@@ -206,6 +207,61 @@ public class LanceService {
 
         return LanceAdminDTO.fromEntity(lance);
     }
+
+    // =========================
+    // ADMIN — ASSINATURA (upload direto)
+    // =========================
+
+    /**
+     * Devolve os dados assinados para o navegador enviar o arquivo
+     * DIRETO ao Cloudinary, sem passar pelo backend (evita o 413 do
+     * Render em áudio/vídeo grandes).
+     */
+    public AssinaturaUploadDTO gerarAssinaturaUpload() {
+
+        Map<String, Object> a = storageService.assinarUploadLance();
+
+        return new AssinaturaUploadDTO(
+                (String) a.get("cloud_name"),
+                (String) a.get("api_key"),
+                ((Number) a.get("timestamp")).longValue(),
+                (String) a.get("public_id"),
+                (String) a.get("signature")
+        );
+    }
+
+    // =========================
+    // ADMIN — REGISTRAR MÍDIA (upload direto OU embed)
+    // =========================
+
+    /**
+     * Registra no lance uma mídia que já existe:
+     *  - UPLOAD → a URL veio do upload direto ao Cloudinary;
+     *  - EMBED  → a URL é do veículo (permite embed em lance já criado).
+     */
+    @Transactional
+    public LanceAdminDTO registrarMidia(Long lanceId, MidiaRegistroDTO dto) {
+
+        Lance lance = obterLance(lanceId);
+
+        LanceMidia midia = LanceMidia.builder()
+                .tipo(dto.tipo())
+                .origem(dto.origem())
+                .url(dto.url())
+                .legenda(dto.legenda())
+                .ordem(dto.ordem() != null ? dto.ordem() : lance.getMidias().size())
+                .build();
+
+        lance.adicionarMidia(midia);
+
+        lanceRepository.save(lance);
+
+        return LanceAdminDTO.fromEntity(lance);
+    }
+
+    // =========================
+    // ADMIN — REMOVER MÍDIA
+    // =========================
 
     @Transactional
     public LanceAdminDTO removerMidia(Long lanceId, Long midiaId) {

@@ -1,8 +1,10 @@
 package br.com.copadasautoras.controller;
 
+import br.com.copadasautoras.dto.AssinaturaUploadDTO;
 import br.com.copadasautoras.dto.LanceAdminDTO;
 import br.com.copadasautoras.dto.LanceRequestDTO;
 import br.com.copadasautoras.dto.LanceUpdateDTO;
+import br.com.copadasautoras.dto.MidiaRegistroDTO;
 import br.com.copadasautoras.entity.CategoriaLance;
 import br.com.copadasautoras.entity.TipoMidia;
 import br.com.copadasautoras.service.LanceService;
@@ -48,6 +50,23 @@ public class LanceAdminController {
     ) {
         return ResponseEntity.ok(
                 lanceService.listarAdmin(categoria, golaco)
+        );
+    }
+
+    // Assinatura para upload direto — rota literal declarada antes de /{id}.
+    @Operation(
+            summary = "Gerar assinatura para upload direto ao Cloudinary",
+            description = """
+                    Devolve cloud_name, api_key, timestamp, public_id e a
+                    assinatura. Com isso o navegador envia o arquivo direto ao
+                    Cloudinary, sem passar pelo backend (evita o 413 do Render
+                    em áudio/vídeo grandes). O api_secret nunca sai do servidor.
+                    """
+    )
+    @GetMapping("/assinatura-upload")
+    public ResponseEntity<AssinaturaUploadDTO> assinaturaUpload() {
+        return ResponseEntity.ok(
+                lanceService.gerarAssinaturaUpload()
         );
     }
 
@@ -103,15 +122,15 @@ public class LanceAdminController {
     }
 
     // =========================
-    // MÍDIAS (UPLOAD)
+    // MÍDIAS
     // =========================
 
     @Operation(
-            summary = "Adicionar mídia por upload",
+            summary = "Adicionar mídia por upload (via backend)",
             description = """
-                    Envia uma foto/vídeo próprio para o Cloudinary e o vincula
-                    ao lance. Para mídias de veículo (rádio/TV/YouTube), use
-                    embed no cadastro em vez de upload.
+                    Envia uma foto/vídeo próprio para o Cloudinary passando pelo
+                    backend. Serve para arquivos pequenos; para áudio/vídeo
+                    grandes, use o upload direto (assinatura + registrar).
                     """
     )
     @PostMapping(
@@ -129,6 +148,24 @@ public class LanceAdminController {
                 lanceService.adicionarMidiaUpload(
                         id, arquivo, tipo, legenda, ordem
                 )
+        );
+    }
+
+    @Operation(
+            summary = "Registrar mídia já enviada (upload direto ou embed)",
+            description = """
+                    Vincula ao lance uma mídia que já existe: a URL do Cloudinary
+                    (após o upload direto do navegador) ou a URL de um veículo
+                    (embed). Também permite adicionar embed a um lance já criado.
+                    """
+    )
+    @PostMapping("/{id}/midias/registrar")
+    public ResponseEntity<LanceAdminDTO> registrarMidia(
+            @PathVariable Long id,
+            @Valid @RequestBody MidiaRegistroDTO dto
+    ) {
+        return ResponseEntity.ok(
+                lanceService.registrarMidia(id, dto)
         );
     }
 
