@@ -63,5 +63,25 @@ public class Autora {
     @OneToOne
     @JoinColumn(name = "usuario_id")
     private Usuario usuario;
-}
 
+    /**
+     * Fonte de verdade única do "perfil completo".
+     *
+     * O perfil só é considerado completo quando os campos obrigatórios
+     * estão preenchidos: nome completo, nome de exibição, biografia e
+     * link de rede social. O site é opcional e não entra na regra.
+     *
+     * Usado como trava institucional na aprovação da autora — se a regra
+     * mudar, muda só aqui.
+     */
+    public boolean isPerfilCompleto() {
+        return isPreenchido(nome)
+                && isPreenchido(nomeExibicao)
+                && isPreenchido(biografia)
+                && isPreenchido(redesSociais);
+    }
+
+    private static boolean isPreenchido(String valor) {
+        return valor != null && !valor.isBlank();
+    }
+}

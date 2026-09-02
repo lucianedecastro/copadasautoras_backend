@@ -129,6 +129,28 @@ public class AutoraController {
     // =====================================================
 
     @Operation(
+            summary = "Buscar autora por ID (admin)",
+            description = """
+                    Retorna a autora completa para uso administrativo,
+                    incluindo status e o sinal de perfil completo — usado
+                    na tela de conferência do painel do admin.
+                    """
+    )
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/admin/{id}")
+    public ResponseEntity<AutoraResponseDTO>
+    buscarPorIdAdmin(
+            @PathVariable Long id
+    ) {
+
+        return ResponseEntity.ok(
+                autoraService.buscarPorIdAdmin(
+                        id
+                )
+        );
+    }
+
+    @Operation(
             summary = "Listar autoras por status",
             description = "Lista autoras por status institucional."
     )
@@ -182,5 +204,3 @@ public class AutoraController {
         );
     }
 }
-
-

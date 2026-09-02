@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -42,6 +43,10 @@ public class AutoraService {
      * - nome
      * - email
      * - status
+     *
+     * A obrigatoriedade dos campos (nome de exibição, biografia e rede
+     * social) é garantida pelas validações do AutoraUpdateRequestDTO —
+     * uma requisição incompleta é barrada com 400 antes de chegar aqui.
      */
     public AutoraResponseDTO atualizarMeuPerfil(
             AutoraUpdateRequestDTO request
@@ -49,10 +54,36 @@ public class AutoraService {
 
         Autora autora = obterAutoraAutenticada();
 
+        // Guarda o link social ANTES de sobrescrever, pra detectar troca.
+        String redeSocialAnterior = autora.getRedesSociais();
+
         autora.setNomeExibicao(request.nomeExibicao());
         autora.setBiografia(request.biografia());
         autora.setSite(request.site());
         autora.setRedesSociais(request.redesSociais());
+
+        // =====================================================
+        // RE-ANÁLISE AO TROCAR A REDE SOCIAL
+        //
+        // A aprovação manual valida um perfil de rede social
+        // específico. Se uma autora JÁ APROVADA troca esse link,
+        // o vínculo conferido deixa de valer: ela volta pra
+        // PENDENTE pra nova conferência antes de reautorizar.
+        //
+        // Trocar apenas biografia ou site NÃO reabre a análise.
+        // (Se não quiser esse comportamento, remova este bloco.)
+        // =====================================================
+        boolean trocouRedeSocial =
+                !Objects.equals(
+                        normalizar(redeSocialAnterior),
+                        normalizar(request.redesSociais())
+                );
+
+        if (autora.getStatusAutora() == StatusAutora.APROVADA
+                && trocouRedeSocial) {
+
+            autora.setStatusAutora(StatusAutora.PENDENTE);
+        }
 
         autoraRepository.save(autora);
 
@@ -100,6 +131,23 @@ public class AutoraService {
     }
 
     /**
+     * Busca a autora completa por ID — uso administrativo.
+     *
+     * Diferente do perfil público, devolve status e o sinal de
+     * perfilCompleto, que o painel do admin usa pra habilitar (ou não)
+     * a aprovação e pra mostrar se a autora já está pronta pra conferência.
+     */
+    @Transactional(readOnly = true)
+    public AutoraResponseDTO buscarPorIdAdmin(
+            Long autoraId
+    ) {
+
+        return toResponseDTO(
+                buscarAutoraPorId(autoraId)
+        );
+    }
+
+    /**
      * Solicita exclusão institucional do perfil.
      * Não remove fisicamente do banco.
      */
@@ -139,6 +187,10 @@ public class AutoraService {
     /**
      * Aprova autora.
      * Uso administrativo.
+     *
+     * Trava institucional: não é possível aprovar uma autora com perfil
+     * incompleto. Sem biografia e link de rede social não há o que a
+     * administração conferir antes de autorizar submissões.
      */
     public AutoraResponseDTO aprovarAutora(
             Long autoraId
@@ -147,6 +199,14 @@ public class AutoraService {
         Autora autora = buscarAutoraPorId(
                 autoraId
         );
+
+        if (!autora.isPerfilCompleto()) {
+
+            throw new RuntimeException(
+                    "Não é possível aprovar: o perfil da autora está incompleto "
+                            + "(nome completo, biografia e rede social são obrigatórios)."
+            );
+        }
 
         autora.setStatusAutora(
                 StatusAutora.APROVADA
@@ -219,6 +279,14 @@ public class AutoraService {
                 );
     }
 
+    /**
+     * Normaliza um valor de texto para comparação (trim, null-safe).
+     */
+    private static String normalizar(String valor) {
+
+        return valor == null ? null : valor.trim();
+    }
+
     private AutoraResponseDTO toResponseDTO(
             Autora autora
     ) {
@@ -231,8 +299,8 @@ public class AutoraService {
                 autora.getBiografia(),
                 autora.getSite(),
                 autora.getRedesSociais(),
-                autora.getStatusAutora()
+                autora.getStatusAutora(),
+                autora.isPerfilCompleto()
         );
     }
 }
-
