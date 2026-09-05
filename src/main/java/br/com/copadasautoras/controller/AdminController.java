@@ -194,6 +194,32 @@ public class AdminController {
     }
 
     // =========================
+    // 🗑️ EXCLUIR SUBMISSÃO
+    // =========================
+
+    @Operation(
+            summary = "Excluir submissão (admin)",
+            description = """
+                    Exclui uma obra pelo ID, junto com o termo de aceite
+                    e os arquivos. Só é permitido para obras fora da
+                    competição (submetidas ou não selecionadas) — excluir
+                    uma obra em disputa quebraria o chaveamento.
+
+                    Apenas ADMIN.
+                    """
+    )
+    @DeleteMapping("/submissoes/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> excluirSubmissao(
+            @PathVariable Long id
+    ) {
+
+        adminService.excluirSubmissao(id);
+
+        return ResponseEntity.noContent().build();
+    }
+
+    // =========================
     // 📊 DASHBOARD
     // =========================
 

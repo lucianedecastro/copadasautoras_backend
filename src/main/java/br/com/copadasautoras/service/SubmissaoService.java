@@ -552,6 +552,59 @@ public class SubmissaoService {
     }
 
     // =========================
+    // EXCLUIR SUBMISSÃO (ADMIN)
+    // =========================
+
+    /**
+     * Exclui uma submissão pelo ID — uso administrativo.
+     *
+     * Espelha a exclusão da autora (remove AceiteTermo + arquivos no
+     * Cloudinary + a obra), mas identificada por ID e sem exigir que
+     * seja a obra da pessoa autenticada. Reaproveita apagarDoStorage.
+     *
+     * Trava de integridade: só exclui obra FORA da competição
+     * (SUBMETIDA ou NAO_SELECIONADA) e sem grupo. Excluir uma obra em
+     * disputa quebraria o chaveamento.
+     */
+    @Transactional
+    public void excluirSubmissaoAdmin(Long submissaoId) {
+
+        Submissao submissao = submissaoRepository.findById(submissaoId)
+                .orElseThrow(() ->
+                        new RuntimeException("Submissão não encontrada."));
+
+        StatusSubmissao status = submissao.getStatus();
+        boolean foraDaCompeticao =
+                status == StatusSubmissao.SUBMETIDA
+                        || status == StatusSubmissao.NAO_SELECIONADA;
+
+        if (!foraDaCompeticao || submissao.getGrupo() != null) {
+            throw new RuntimeException(
+                    "Só é possível excluir obras fora da competição "
+                            + "(submetidas ou não selecionadas). Esta obra "
+                            + "está em disputa — excluí-la quebraria o chaveamento."
+            );
+        }
+
+        List<String> arquivosParaApagar = new ArrayList<>();
+        arquivosParaApagar.add(submissao.getArquivoCompletoUrl());
+        arquivosParaApagar.add(submissao.getArquivoPublicoUrl());
+
+        aceiteTermoRepository
+                .findBySubmissaoId(submissaoId)
+                .ifPresent(aceite -> {
+                    arquivosParaApagar.add(aceite.getTermoPdfUrl());
+                    aceiteTermoRepository.delete(aceite);
+                });
+
+        submissaoRepository.delete(submissao);
+
+        arquivosParaApagar.forEach(url ->
+                apagarDoStorage(url, "arquivo da submissão " + submissaoId)
+        );
+    }
+
+    // =========================
     // GERAR CONFRONTOS
     // =========================
     @Transactional

@@ -602,6 +602,21 @@ public class AdminService {
     }
 
     // =========================
+    // EXCLUIR SUBMISSÃO
+    // =========================
+
+    /**
+     * Exclui uma submissão pelo ID. Uso administrativo.
+     *
+     * Delega ao SubmissaoService, que remove termo de aceite e arquivos
+     * junto e aplica a trava de integridade (só obra fora da competição).
+     */
+    @Transactional
+    public void excluirSubmissao(Long submissaoId) {
+        submissaoService.excluirSubmissaoAdmin(submissaoId);
+    }
+
+    // =========================
     // HELPER
     // =========================
 
