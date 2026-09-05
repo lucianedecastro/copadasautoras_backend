@@ -188,7 +188,7 @@ public class AutoraController {
 
     @Operation(
             summary = "Suspender autora",
-            description = "Suspende autora aprovada."
+            description = "Suspende a autora. Vale a partir de qualquer status ativo."
     )
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/suspender")
@@ -199,6 +199,28 @@ public class AutoraController {
 
         return ResponseEntity.ok(
                 autoraService.suspenderAutora(
+                        id
+                )
+        );
+    }
+
+    @Operation(
+            summary = "Excluir autora (admin)",
+            description = """
+                    Exclusão institucional (soft delete): marca a autora
+                    como EXCLUIDA sem remover fisicamente do banco.
+                    Reversível — a autora pode ser reativada depois.
+                    """
+    )
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{id}/excluir")
+    public ResponseEntity<AutoraResponseDTO>
+    excluirAutora(
+            @PathVariable Long id
+    ) {
+
+        return ResponseEntity.ok(
+                autoraService.excluirAutora(
                         id
                 )
         );

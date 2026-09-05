@@ -220,6 +220,9 @@ public class AutoraService {
     /**
      * Suspende autora.
      * Uso administrativo.
+     *
+     * Vale a partir de qualquer status ativo (pendente, aprovada) — útil
+     * para bloquear um cadastro que não deve seguir na competição.
      */
     public AutoraResponseDTO suspenderAutora(
             Long autoraId
@@ -232,6 +235,39 @@ public class AutoraService {
         autora.setStatusAutora(
                 StatusAutora.SUSPENSA
         );
+
+        autoraRepository.save(autora);
+
+        return toResponseDTO(autora);
+    }
+
+    /**
+     * Exclui a autora (soft delete).
+     * Uso administrativo.
+     *
+     * Marca o status como EXCLUIDA sem remover fisicamente do banco —
+     * mesmo princípio da autoexclusão. É reversível (a autora pode ser
+     * reativada depois). Preserva a justificativa existente, se houver.
+     */
+    public AutoraResponseDTO excluirAutora(
+            Long autoraId
+    ) {
+
+        Autora autora = buscarAutoraPorId(
+                autoraId
+        );
+
+        autora.setStatusAutora(
+                StatusAutora.EXCLUIDA
+        );
+
+        if (autora.getJustificativaExclusao() == null
+                || autora.getJustificativaExclusao().isBlank()) {
+
+            autora.setJustificativaExclusao(
+                    "Excluída pela administração."
+            );
+        }
 
         autoraRepository.save(autora);
 
