@@ -29,6 +29,7 @@ public class SubmissaoService {
     private final CloudinaryStorageService storageService;
     private final TermoService termoService;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditoriaService auditoriaService;
 
     // =========================
     // CRIAR SUBMISSÃO
@@ -494,6 +495,7 @@ public class SubmissaoService {
 
         Submissao submissao = buscarSubmissaoEditavel();
         Long submissaoId = submissao.getId();
+        StatusSubmissao statusAnterior = submissao.getStatus();
 
         // Guarda extra: se por algum caminho a obra já estiver num grupo,
         // não é seguro apagá-la, mesmo que o status ainda diga SUBMETIDA.
@@ -517,6 +519,15 @@ public class SubmissaoService {
                 });
 
         submissaoRepository.delete(submissao);
+
+        auditoriaService.submissao(
+                OrigemAuditoria.AUTORA,
+                submissaoId,
+                AcaoAuditoria.EXCLUIDA,
+                statusAnterior,
+                null,
+                null
+        );
 
         // O Cloudinary não participa da transação. Se o banco desse
         // rollback depois de apagarmos os arquivos, a linha continuaria
@@ -598,6 +609,15 @@ public class SubmissaoService {
                 });
 
         submissaoRepository.delete(submissao);
+
+        auditoriaService.submissao(
+                OrigemAuditoria.ADMIN,
+                submissaoId,
+                AcaoAuditoria.EXCLUIDA,
+                status,
+                null,
+                null
+        );
 
         arquivosParaApagar.forEach(url ->
                 apagarDoStorage(url, "arquivo da submissão " + submissaoId)

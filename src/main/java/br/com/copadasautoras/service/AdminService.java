@@ -40,6 +40,7 @@ public class AdminService {
     private final SubmissaoRepository submissaoRepository;
     private final GrupoCompeticaoRepository grupoCompeticaoRepository;
     private final VotoFinalRepository votoFinalRepository;
+    private final AuditoriaService auditoriaService;
 
     // =========================
     // 👤 GERENCIAMENTO DE USUÁRIOS
@@ -549,6 +550,8 @@ public class AdminService {
 
         for (Submissao submissao : submetidas) {
 
+            StatusSubmissao statusAnterior = submissao.getStatus();
+
             if (selecionadas.contains(
                     submissao.getId()
             )) {
@@ -569,6 +572,15 @@ public class AdminService {
                         null
                 );
 
+                auditoriaService.submissao(
+                        OrigemAuditoria.ADMIN,
+                        submissao.getId(),
+                        AcaoAuditoria.SELECIONADA,
+                        statusAnterior,
+                        StatusSubmissao.EM_COMPETICAO,
+                        null
+                );
+
                 totalSelecionadas++;
 
             } else {
@@ -582,6 +594,15 @@ public class AdminService {
                 );
 
                 submissao.setJustificativaNaoSelecao(
+                        "Obra analisada pela curadoria editorial, mas não selecionada para compor a edição vigente da Copa de Literatura de Futebol Feminino."
+                );
+
+                auditoriaService.submissao(
+                        OrigemAuditoria.ADMIN,
+                        submissao.getId(),
+                        AcaoAuditoria.NAO_SELECIONADA,
+                        statusAnterior,
+                        StatusSubmissao.NAO_SELECIONADA,
                         "Obra analisada pela curadoria editorial, mas não selecionada para compor a edição vigente da Copa de Literatura de Futebol Feminino."
                 );
 

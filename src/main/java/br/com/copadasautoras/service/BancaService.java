@@ -3,8 +3,11 @@ package br.com.copadasautoras.service;
 import br.com.copadasautoras.dto.BancaClassificacaoRequestDTO;
 import br.com.copadasautoras.dto.BancaObraResponseDTO;
 import br.com.copadasautoras.dto.VotoFinalRequestDTO;
+import br.com.copadasautoras.entity.AcaoAuditoria;
 import br.com.copadasautoras.entity.Competicao;
 import br.com.copadasautoras.entity.Confronto;
+import br.com.copadasautoras.entity.OrigemAuditoria;
+import br.com.copadasautoras.entity.TipoEntidadeAuditoria;
 import br.com.copadasautoras.entity.FaseCompeticao;
 import br.com.copadasautoras.entity.GrupoCompeticao;
 import br.com.copadasautoras.entity.Role;
@@ -38,6 +41,7 @@ public class BancaService {
     private final CompeticaoRepository competicaoRepository;
     private final VotoFinalRepository votoFinalRepository;
     private final ConfrontoRepository confrontoRepository;
+    private final AuditoriaService auditoriaService;
 
     public List<BancaObraResponseDTO> minhasObras() {
 
@@ -187,6 +191,8 @@ public class BancaService {
         for (Submissao submissao
                 : obrasGrupo) {
 
+            StatusSubmissao statusAnterior = submissao.getStatus();
+
             if (request.classificadas()
                     .contains(
                             submissao.getId()
@@ -200,10 +206,28 @@ public class BancaService {
                         proximaFase
                 );
 
+                auditoriaService.submissao(
+                        OrigemAuditoria.BANCA,
+                        submissao.getId(),
+                        AcaoAuditoria.CLASSIFICADA,
+                        statusAnterior,
+                        StatusSubmissao.CLASSIFICADA,
+                        null
+                );
+
             } else {
 
                 submissao.setStatus(
                         StatusSubmissao.ELIMINADA
+                );
+
+                auditoriaService.submissao(
+                        OrigemAuditoria.BANCA,
+                        submissao.getId(),
+                        AcaoAuditoria.ELIMINADA,
+                        statusAnterior,
+                        StatusSubmissao.ELIMINADA,
+                        null
                 );
             }
 
@@ -300,6 +324,16 @@ public class BancaService {
 
         votoFinalRepository.save(
                 voto
+        );
+
+        auditoriaService.registrar(
+                OrigemAuditoria.BANCA,
+                TipoEntidadeAuditoria.SUBMISSAO,
+                submissao.getId(),
+                AcaoAuditoria.VOTO_FINAL,
+                null,
+                null,
+                null
         );
     }
 

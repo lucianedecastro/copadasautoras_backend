@@ -1,7 +1,9 @@
 package br.com.copadasautoras.service;
 
 import br.com.copadasautoras.dto.*;
+import br.com.copadasautoras.entity.AcaoAuditoria;
 import br.com.copadasautoras.entity.Autora;
+import br.com.copadasautoras.entity.OrigemAuditoria;
 import br.com.copadasautoras.entity.StatusAutora;
 import br.com.copadasautoras.entity.Submissao;
 import br.com.copadasautoras.entity.Usuario;
@@ -25,6 +27,7 @@ public class AutoraService {
     private final AutoraRepository autoraRepository;
     private final UsuarioRepository usuarioRepository;
     private final SubmissaoRepository submissaoRepository;
+    private final AuditoriaService auditoriaService;
 
     /**
      * Busca o perfil privado da autora autenticada.
@@ -83,6 +86,15 @@ public class AutoraService {
                 && trocouRedeSocial) {
 
             autora.setStatusAutora(StatusAutora.PENDENTE);
+
+            auditoriaService.autora(
+                    OrigemAuditoria.SISTEMA,
+                    autora.getId(),
+                    AcaoAuditoria.REANALISE,
+                    StatusAutora.APROVADA,
+                    StatusAutora.PENDENTE,
+                    "Reanálise automática: troca do link de rede social."
+            );
         }
 
         autoraRepository.save(autora);
@@ -157,6 +169,8 @@ public class AutoraService {
 
         Autora autora = obterAutoraAutenticada();
 
+        StatusAutora statusAnterior = autora.getStatusAutora();
+
         autora.setStatusAutora(
                 StatusAutora.EXCLUIDA
         );
@@ -166,6 +180,15 @@ public class AutoraService {
         );
 
         autoraRepository.save(autora);
+
+        auditoriaService.autora(
+                OrigemAuditoria.AUTORA,
+                autora.getId(),
+                AcaoAuditoria.EXCLUIDA,
+                statusAnterior,
+                StatusAutora.EXCLUIDA,
+                request.justificativa()
+        );
     }
 
     /**
@@ -208,11 +231,22 @@ public class AutoraService {
             );
         }
 
+        StatusAutora statusAnterior = autora.getStatusAutora();
+
         autora.setStatusAutora(
                 StatusAutora.APROVADA
         );
 
         autoraRepository.save(autora);
+
+        auditoriaService.autora(
+                OrigemAuditoria.ADMIN,
+                autora.getId(),
+                AcaoAuditoria.APROVADA,
+                statusAnterior,
+                StatusAutora.APROVADA,
+                null
+        );
 
         return toResponseDTO(autora);
     }
@@ -232,11 +266,22 @@ public class AutoraService {
                 autoraId
         );
 
+        StatusAutora statusAnterior = autora.getStatusAutora();
+
         autora.setStatusAutora(
                 StatusAutora.SUSPENSA
         );
 
         autoraRepository.save(autora);
+
+        auditoriaService.autora(
+                OrigemAuditoria.ADMIN,
+                autora.getId(),
+                AcaoAuditoria.SUSPENSA,
+                statusAnterior,
+                StatusAutora.SUSPENSA,
+                null
+        );
 
         return toResponseDTO(autora);
     }
@@ -257,6 +302,8 @@ public class AutoraService {
                 autoraId
         );
 
+        StatusAutora statusAnterior = autora.getStatusAutora();
+
         autora.setStatusAutora(
                 StatusAutora.EXCLUIDA
         );
@@ -270,6 +317,15 @@ public class AutoraService {
         }
 
         autoraRepository.save(autora);
+
+        auditoriaService.autora(
+                OrigemAuditoria.ADMIN,
+                autora.getId(),
+                AcaoAuditoria.EXCLUIDA,
+                statusAnterior,
+                StatusAutora.EXCLUIDA,
+                autora.getJustificativaExclusao()
+        );
 
         return toResponseDTO(autora);
     }
