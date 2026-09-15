@@ -10,7 +10,6 @@ import br.com.copadasautoras.repository.AutoraRepository;
 import br.com.copadasautoras.repository.RegistroAuditoriaRepository;
 import br.com.copadasautoras.repository.SubmissaoRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -70,12 +69,18 @@ public class AuditoriaConsultaService {
         LocalDateTime ini = (inicio != null) ? inicio.atStartOfDay() : null;
         LocalDateTime fimDt = (fim != null) ? fim.atTime(LocalTime.MAX) : null;
 
+        String origemStr = (origem != null) ? origem.name() : null;
+        String entidadeStr = (entidade != null) ? entidade.name() : null;
+        String acaoStr = (acao != null) ? acao.name() : null;
+
         long total = registroAuditoriaRepository.contar(
-                origem, entidade, entidadeId, acao, ini, fimDt);
+                origemStr, entidadeStr, entidadeId, acaoStr, ini, fimDt);
+
+        int deslocamento = pagina * tamanho;
 
         List<RegistroAuditoria> registros = registroAuditoriaRepository.buscar(
-                origem, entidade, entidadeId, acao, ini, fimDt,
-                PageRequest.of(pagina, tamanho));
+                origemStr, entidadeStr, entidadeId, acaoStr, ini, fimDt,
+                tamanho, deslocamento);
 
         Map<Long, String> nomesAutora = resolverAutoras(registros);
         Map<Long, String> titulosObra = resolverObras(registros);

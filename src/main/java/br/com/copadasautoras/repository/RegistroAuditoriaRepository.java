@@ -1,7 +1,5 @@
 package br.com.copadasautoras.repository;
 
-import br.com.copadasautoras.entity.AcaoAuditoria;
-import br.com.copadasautoras.entity.OrigemAuditoria;
 import br.com.copadasautoras.entity.RegistroAuditoria;
 import br.com.copadasautoras.entity.TipoEntidadeAuditoria;
 import org.springframework.data.domain.Pageable;
@@ -32,49 +30,59 @@ public interface RegistroAuditoriaRepository
     // =========================
     // CONSULTA FILTRADA (tela de auditoria)
     // =========================
+    //
+    // SQL nativo com CAST explícito em cada parâmetro. Sem os casts, o
+    // Postgres não consegue determinar o tipo de um parâmetro nulo na
+    // checagem "(:param is null or ...)" e devolve 42P18
+    // ("could not determine data type of parameter"). O cast dá o tipo
+    // ao banco mesmo quando o valor vem nulo (filtro desligado).
+    //
+    // Os enums entram como texto (a coluna é varchar via @Enumerated
+    // STRING), então o serviço passa origem/entidade/acao já como name().
 
     /**
-     * Busca filtrada e paginada. Cada filtro é opcional: quando o
-     * parâmetro vem nulo, aquele critério é ignorado.
+     * Busca filtrada e paginada. Cada filtro é opcional: nulo = ignorado.
      */
-    @Query("""
-            select r from RegistroAuditoria r
-            where (:origem is null or r.origem = :origem)
-              and (:entidade is null or r.entidade = :entidade)
-              and (:entidadeId is null or r.entidadeId = :entidadeId)
-              and (:acao is null or r.acao = :acao)
-              and (:inicio is null or r.dataHora >= :inicio)
-              and (:fim is null or r.dataHora <= :fim)
-            order by r.dataHora desc
-            """)
+    @Query(value = """
+            select * from registro_auditoria r
+            where (cast(:origem as varchar) is null or r.origem = cast(:origem as varchar))
+              and (cast(:entidade as varchar) is null or r.entidade = cast(:entidade as varchar))
+              and (cast(:entidadeId as bigint) is null or r.entidade_id = cast(:entidadeId as bigint))
+              and (cast(:acao as varchar) is null or r.acao = cast(:acao as varchar))
+              and (cast(:inicio as timestamp) is null or r.data_hora >= cast(:inicio as timestamp))
+              and (cast(:fim as timestamp) is null or r.data_hora <= cast(:fim as timestamp))
+            order by r.data_hora desc
+            limit :limite offset :deslocamento
+            """, nativeQuery = true)
     List<RegistroAuditoria> buscar(
-            @Param("origem") OrigemAuditoria origem,
-            @Param("entidade") TipoEntidadeAuditoria entidade,
+            @Param("origem") String origem,
+            @Param("entidade") String entidade,
             @Param("entidadeId") Long entidadeId,
-            @Param("acao") AcaoAuditoria acao,
+            @Param("acao") String acao,
             @Param("inicio") LocalDateTime inicio,
             @Param("fim") LocalDateTime fim,
-            Pageable pageable
+            @Param("limite") int limite,
+            @Param("deslocamento") int deslocamento
     );
 
     /**
      * Total de registros que casam com os mesmos filtros — para saber
      * se ainda há mais páginas.
      */
-    @Query("""
-            select count(r) from RegistroAuditoria r
-            where (:origem is null or r.origem = :origem)
-              and (:entidade is null or r.entidade = :entidade)
-              and (:entidadeId is null or r.entidadeId = :entidadeId)
-              and (:acao is null or r.acao = :acao)
-              and (:inicio is null or r.dataHora >= :inicio)
-              and (:fim is null or r.dataHora <= :fim)
-            """)
+    @Query(value = """
+            select count(*) from registro_auditoria r
+            where (cast(:origem as varchar) is null or r.origem = cast(:origem as varchar))
+              and (cast(:entidade as varchar) is null or r.entidade = cast(:entidade as varchar))
+              and (cast(:entidadeId as bigint) is null or r.entidade_id = cast(:entidadeId as bigint))
+              and (cast(:acao as varchar) is null or r.acao = cast(:acao as varchar))
+              and (cast(:inicio as timestamp) is null or r.data_hora >= cast(:inicio as timestamp))
+              and (cast(:fim as timestamp) is null or r.data_hora <= cast(:fim as timestamp))
+            """, nativeQuery = true)
     long contar(
-            @Param("origem") OrigemAuditoria origem,
-            @Param("entidade") TipoEntidadeAuditoria entidade,
+            @Param("origem") String origem,
+            @Param("entidade") String entidade,
             @Param("entidadeId") Long entidadeId,
-            @Param("acao") AcaoAuditoria acao,
+            @Param("acao") String acao,
             @Param("inicio") LocalDateTime inicio,
             @Param("fim") LocalDateTime fim
     );
