@@ -2,6 +2,10 @@ package br.com.copadasautoras.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -56,6 +60,32 @@ public class Autora {
      */
     @Column(name = "justificativa_exclusao", columnDefinition = "TEXT")
     private String justificativaExclusao;
+
+    /**
+     * Data de cadastro da autora.
+     *
+     * Preenchida uma única vez, no momento do cadastro, pelo Hibernate
+     * ({@link CreationTimestamp}). É NULLABLE de propósito: as autoras
+     * cadastradas antes da migration V13 não têm data conhecida e ficam
+     * como NULL ("legado"). Não é editável.
+     */
+    @CreationTimestamp
+    @Column(name = "data_cadastro", updatable = false)
+    private LocalDateTime dataCadastro;
+
+    /**
+     * Data da última alteração do perfil.
+     *
+     * Preenchida no cadastro e reescrita a cada atualização
+     * ({@link UpdateTimestamp}). Semente do log: registra QUANDO o
+     * perfil mudou pela última vez — não quem mudou nem o quê (isso
+     * é papel de uma tabela de auditoria própria, ainda a fazer).
+     * Também NULLABLE: as autoras legado só ganham valor quando forem
+     * editadas pela primeira vez.
+     */
+    @UpdateTimestamp
+    @Column(name = "data_atualizacao")
+    private LocalDateTime dataAtualizacao;
 
     /**
      * Usuário responsável pela autenticação.
