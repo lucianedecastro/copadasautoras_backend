@@ -32,6 +32,12 @@ public interface AutoraRepository extends JpaRepository<Autora, Long> {
     List<Autora> findByStatusAutora(StatusAutora statusAutora);
 
     /**
+     * Conta autoras por status institucional.
+     * Usado pelas métricas do painel (só contagem, sem dados).
+     */
+    long countByStatusAutora(StatusAutora statusAutora);
+
+    /**
      * Verifica se email já existe.
      * Email agora pertence a Usuario.
      */
@@ -43,4 +49,3 @@ public interface AutoraRepository extends JpaRepository<Autora, Long> {
      */
     boolean existsByNomeExibicao(String nomeExibicao);
 }
-

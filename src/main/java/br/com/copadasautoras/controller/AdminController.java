@@ -2,13 +2,18 @@ package br.com.copadasautoras.controller;
 
 import br.com.copadasautoras.dto.AdminDashboardDTO;
 import br.com.copadasautoras.dto.CreateUsuarioRequest;
+import br.com.copadasautoras.dto.MetricasResponseDTO;
 import br.com.copadasautoras.dto.UpdateUsuarioAdminRequest;
 import br.com.copadasautoras.dto.UsuarioAdminResponseDTO;
 import br.com.copadasautoras.service.AdminService;
+import br.com.copadasautoras.service.MetricasService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -17,6 +22,8 @@ import br.com.copadasautoras.dto.SelecaoEdicaoRequest;
 import br.com.copadasautoras.dto.SelecaoEdicaoResponseDTO;
 import br.com.copadasautoras.dto.SubmissaoResponseDTO;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
@@ -26,6 +33,7 @@ import java.util.List;
 public class AdminController {
 
     private final AdminService adminService;
+    private final MetricasService metricasService;
 
     // =========================
     // 👤 USUÁRIOS ADMIN/BANCA
@@ -234,6 +242,91 @@ public class AdminController {
         return ResponseEntity.ok(
                 adminService.obterDashboard()
         );
+    }
+
+    // =========================
+    // 📈 MÉTRICAS (CAIXA DE DADOS + RELATÓRIO)
+    // =========================
+
+    @Operation(
+            summary = "Métricas do painel",
+            description = """
+                    Números agregados da Copa para a caixa de dados do
+                    painel: total de autoras e de obras (com detalhamento
+                    por status) e a série de obras inscritas por semana.
+
+                    Só contagem — nenhum dado identificável. Independente
+                    de a competição estar iniciada.
+                    """
+    )
+    @GetMapping("/metricas")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<MetricasResponseDTO> metricas() {
+
+        return ResponseEntity.ok(
+                metricasService.obterMetricas()
+        );
+    }
+
+    @Operation(
+            summary = "Relatório de inscrições em PDF",
+            description = """
+                    Gera o relatório agregado (só números) em PDF, na
+                    identidade da Copa. Aceita recorte por período via
+                    ?inicio=YYYY-MM-DD&fim=YYYY-MM-DD (ambos opcionais).
+                    O período filtra as obras pela data de submissão.
+                    """
+    )
+    @GetMapping("/metricas/relatorio/pdf")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<byte[]> relatorioPdf(
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim
+    ) {
+
+        byte[] conteudo = metricasService.gerarPdf(inicio, fim);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + nomeArquivo("pdf") + "\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(conteudo);
+    }
+
+    @Operation(
+            summary = "Relatório de inscrições em Excel",
+            description = """
+                    Gera o relatório agregado (só números) em .xlsx.
+                    Aceita recorte por período via
+                    ?inicio=YYYY-MM-DD&fim=YYYY-MM-DD (ambos opcionais).
+                    O período filtra as obras pela data de submissão.
+                    """
+    )
+    @GetMapping("/metricas/relatorio/excel")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<byte[]> relatorioExcel(
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim
+    ) {
+
+        byte[] conteudo = metricasService.gerarExcel(inicio, fim);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + nomeArquivo("xlsx") + "\"")
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(conteudo);
+    }
+
+    private String nomeArquivo(String extensao) {
+        String data = LocalDate.now()
+                .format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        return "copa-das-autoras-inscricoes-" + data + "." + extensao;
     }
 
     // =========================
