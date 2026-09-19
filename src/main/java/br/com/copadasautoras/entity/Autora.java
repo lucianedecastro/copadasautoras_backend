@@ -62,6 +62,19 @@ public class Autora {
     private String justificativaExclusao;
 
     /**
+     * Motivo da exclusão (registro interno).
+     *
+     * Só faz sentido quando o status é EXCLUIDA. Guardado como texto e
+     * usado apenas para decidir a mensagem GENÉRICA que a autora vê no
+     * painel — nunca a justificativa livre nem o motivo específico.
+     * NULL nas linhas anteriores à migration V15: o painel trata NULL
+     * como encerramento neutro (jamais como "inadequação").
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "motivo_exclusao", length = 20)
+    private MotivoExclusao motivoExclusao;
+
+    /**
      * Data de cadastro da autora.
      *
      * Preenchida uma única vez, no momento do cadastro, pelo Hibernate

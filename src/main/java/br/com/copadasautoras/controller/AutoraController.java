@@ -210,18 +210,29 @@ public class AutoraController {
                     Exclusão institucional (soft delete): marca a autora
                     como EXCLUIDA sem remover fisicamente do banco.
                     Reversível — a autora pode ser reativada depois.
+                    
+                    Recebe no corpo:
+                    - motivo (obrigatório): categoria que define a mensagem
+                      genérica exibida à autora (INADEQUACAO, ADMINISTRATIVA).
+                    - justificativa (opcional): registro interno, vai para a
+                      auditoria e nunca aparece pra autora.
                     """
     )
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/excluir")
     public ResponseEntity<AutoraResponseDTO>
     excluirAutora(
-            @PathVariable Long id
+            @PathVariable Long id,
+            @Valid
+            @RequestBody
+            ExclusaoAdminRequestDTO request
     ) {
 
         return ResponseEntity.ok(
                 autoraService.excluirAutora(
-                        id
+                        id,
+                        request.motivo(),
+                        request.justificativa()
                 )
         );
     }

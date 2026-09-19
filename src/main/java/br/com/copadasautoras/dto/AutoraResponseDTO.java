@@ -1,5 +1,6 @@
 package br.com.copadasautoras.dto;
 
+import br.com.copadasautoras.entity.MotivoExclusao;
 import br.com.copadasautoras.entity.StatusAutora;
 
 public record AutoraResponseDTO(
@@ -27,15 +28,23 @@ public record AutoraResponseDTO(
          * separar quem está pronta pra conferência de quem ainda não
          * preencheu.
          */
-        boolean perfilCompleto
+        boolean perfilCompleto,
+
+        /**
+         * Motivo da exclusão — apenas a CATEGORIA (INADEQUACAO,
+         * AUTOEXCLUSAO, ADMINISTRATIVA), nunca a justificativa livre.
+         * Só vem preenchido quando statusAutora == EXCLUIDA; o painel da
+         * autora usa isso pra escolher a mensagem genérica certa. NULL nas
+         * autoras já excluídas antes da V15.
+         */
+        MotivoExclusao motivoExclusao
 ) {
 
     /**
-     * Construtor de compatibilidade.
+     * Construtor de compatibilidade (8 campos).
      *
      * Mantém funcionando qualquer ponto do código que ainda cria o DTO
-     * sem o campo perfilCompleto (ele assume 'false' nesses casos). O
-     * AutoraService usa o construtor completo, com o valor real.
+     * sem perfilCompleto (assume 'false') e sem motivoExclusao (null).
      */
     public AutoraResponseDTO(
             Long id,
@@ -56,7 +65,39 @@ public record AutoraResponseDTO(
                 site,
                 redesSociais,
                 statusAutora,
-                false
+                false,
+                null
+        );
+    }
+
+    /**
+     * Construtor de compatibilidade (9 campos).
+     *
+     * Mantém funcionando quem cria o DTO com perfilCompleto mas ainda
+     * sem motivoExclusao (assume null).
+     */
+    public AutoraResponseDTO(
+            Long id,
+            String nome,
+            String nomeExibicao,
+            String email,
+            String biografia,
+            String site,
+            String redesSociais,
+            StatusAutora statusAutora,
+            boolean perfilCompleto
+    ) {
+        this(
+                id,
+                nome,
+                nomeExibicao,
+                email,
+                biografia,
+                site,
+                redesSociais,
+                statusAutora,
+                perfilCompleto,
+                null
         );
     }
 }

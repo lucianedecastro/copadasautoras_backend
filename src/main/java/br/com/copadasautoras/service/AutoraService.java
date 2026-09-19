@@ -3,6 +3,7 @@ package br.com.copadasautoras.service;
 import br.com.copadasautoras.dto.*;
 import br.com.copadasautoras.entity.AcaoAuditoria;
 import br.com.copadasautoras.entity.Autora;
+import br.com.copadasautoras.entity.MotivoExclusao;
 import br.com.copadasautoras.entity.OrigemAuditoria;
 import br.com.copadasautoras.entity.StatusAutora;
 import br.com.copadasautoras.entity.Submissao;
@@ -57,6 +58,10 @@ public class AutoraService {
 
         Autora autora = obterAutoraAutenticada();
 
+        // Estado do perfil ANTES da edição — usado pra saber se a autora
+        // acabou de resolver as pendências que a deixaram suspensa.
+        boolean perfilCompletoAntes = autora.isPerfilCompleto();
+
         // Guarda o link social ANTES de sobrescrever, pra detectar troca.
         String redeSocialAnterior = autora.getRedesSociais();
 
@@ -65,8 +70,14 @@ public class AutoraService {
         autora.setSite(request.site());
         autora.setRedesSociais(request.redesSociais());
 
+        boolean trocouRedeSocial =
+                !Objects.equals(
+                        normalizar(redeSocialAnterior),
+                        normalizar(request.redesSociais())
+                );
+
         // =====================================================
-        // RE-ANÁLISE AO TROCAR A REDE SOCIAL
+        // (1) RE-ANÁLISE AO TROCAR A REDE SOCIAL
         //
         // A aprovação manual valida um perfil de rede social
         // específico. Se uma autora JÁ APROVADA troca esse link,
@@ -74,14 +85,7 @@ public class AutoraService {
         // PENDENTE pra nova conferência antes de reautorizar.
         //
         // Trocar apenas biografia ou site NÃO reabre a análise.
-        // (Se não quiser esse comportamento, remova este bloco.)
         // =====================================================
-        boolean trocouRedeSocial =
-                !Objects.equals(
-                        normalizar(redeSocialAnterior),
-                        normalizar(request.redesSociais())
-                );
-
         if (autora.getStatusAutora() == StatusAutora.APROVADA
                 && trocouRedeSocial) {
 
@@ -94,6 +98,32 @@ public class AutoraService {
                     StatusAutora.APROVADA,
                     StatusAutora.PENDENTE,
                     "Reanálise automática: troca do link de rede social."
+            );
+        }
+
+        // =====================================================
+        // (2) RESGATE DA SUSPENSÃO POR PERFIL INCOMPLETO
+        //
+        // Suspensão é recuperável: se a autora estava suspensa com o
+        // perfil incompleto e agora completou o que faltava, ela volta
+        // SOZINHA pra PENDENTE, pra nova conferência. Só dispara quando
+        // ELA resolveu a pendência (antes incompleto, agora completo) —
+        // uma suspensa com o perfil já completo continua suspensa e é
+        // orientada, no painel, a falar com a organização.
+        // =====================================================
+        if (autora.getStatusAutora() == StatusAutora.SUSPENSA
+                && !perfilCompletoAntes
+                && autora.isPerfilCompleto()) {
+
+            autora.setStatusAutora(StatusAutora.PENDENTE);
+
+            auditoriaService.autora(
+                    OrigemAuditoria.SISTEMA,
+                    autora.getId(),
+                    AcaoAuditoria.REANALISE,
+                    StatusAutora.SUSPENSA,
+                    StatusAutora.PENDENTE,
+                    "Reanálise automática: pendências de perfil resolvidas."
             );
         }
 
@@ -162,6 +192,10 @@ public class AutoraService {
     /**
      * Solicita exclusão institucional do perfil.
      * Não remove fisicamente do banco.
+     *
+     * É a autoexclusão: a própria autora pede pra sair. Marca o motivo
+     * como AUTOEXCLUSAO — o painel usa isso pra mostrar uma mensagem de
+     * encerramento respeitosa, nunca a de inadequação.
      */
     public void solicitarExclusao(
             SolicitacaoExclusaoDTO request
@@ -173,6 +207,10 @@ public class AutoraService {
 
         autora.setStatusAutora(
                 StatusAutora.EXCLUIDA
+        );
+
+        autora.setMotivoExclusao(
+                MotivoExclusao.AUTOEXCLUSAO
         );
 
         autora.setJustificativaExclusao(
@@ -292,10 +330,18 @@ public class AutoraService {
      *
      * Marca o status como EXCLUIDA sem remover fisicamente do banco —
      * mesmo princípio da autoexclusão. É reversível (a autora pode ser
-     * reativada depois). Preserva a justificativa existente, se houver.
+     * reativada depois).
+     *
+     * O 'motivo' é registro interno e define a mensagem genérica que a
+     * autora vê no painel (inadequação, administrativa...). A
+     * 'justificativa' é livre e interna — vai pra auditoria e pro
+     * registro da autora, nunca pro painel dela. Se vier em branco,
+     * grava um texto padrão.
      */
     public AutoraResponseDTO excluirAutora(
-            Long autoraId
+            Long autoraId,
+            MotivoExclusao motivo,
+            String justificativa
     ) {
 
         Autora autora = buscarAutoraPorId(
@@ -308,11 +354,17 @@ public class AutoraService {
                 StatusAutora.EXCLUIDA
         );
 
-        if (autora.getJustificativaExclusao() == null
-                || autora.getJustificativaExclusao().isBlank()) {
+        autora.setMotivoExclusao(
+                motivo != null ? motivo : MotivoExclusao.ADMINISTRATIVA
+        );
 
+        if (justificativa == null || justificativa.isBlank()) {
             autora.setJustificativaExclusao(
                     "Excluída pela administração."
+            );
+        } else {
+            autora.setJustificativaExclusao(
+                    justificativa.trim()
             );
         }
 
@@ -392,7 +444,8 @@ public class AutoraService {
                 autora.getSite(),
                 autora.getRedesSociais(),
                 autora.getStatusAutora(),
-                autora.isPerfilCompleto()
+                autora.isPerfilCompleto(),
+                autora.getMotivoExclusao()
         );
     }
 }
