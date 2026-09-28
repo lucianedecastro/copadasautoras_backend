@@ -15,7 +15,10 @@ public record SubmissaoResponseDTO(
         Long autoraId,
         Long eventoId,
         String arquivoPublicoUrl,
-        String arquivoCompletoUrl
+        String arquivoCompletoUrl,
+        String trechoLiberado,
+        boolean autorizaVotoPopular,
+        boolean elegivelVotoPopular
 
 ) {
 
@@ -32,7 +35,10 @@ public record SubmissaoResponseDTO(
                 submissao.getAutora().getId(),
                 submissao.getEvento().getId(),
                 submissao.getArquivoPublicoUrl(),
-                submissao.getArquivoCompletoUrl()
+                submissao.getArquivoCompletoUrl(),
+                submissao.getTrechoLiberado(),
+                submissao.isAutorizaVotoPopular(),
+                submissao.isElegivelVotoPopular()
         );
     }
 }

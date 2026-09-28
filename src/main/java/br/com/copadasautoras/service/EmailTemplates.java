@@ -42,6 +42,30 @@ public class EmailTemplates {
                         """.formatted(escapar(nomeAutora), linkReset, linkReset));
     }
 
+    public String confirmarVotoPopular(String tituloObra, String linkConfirmacao) {
+        return BASE.replace("{{titulo}}", "Confirme o seu voto")
+                .replace("{{conteudo}}", """
+                        <p style="margin:0 0 16px;">Olá,</p>
+                        <p style="margin:0 0 16px;">Recebemos o seu voto para
+                        <strong>%s</strong> no "Escolha do Público" da
+                        <strong>Copa das Autoras</strong>. Falta só um passo:
+                        confirme clicando no botão abaixo.</p>
+                        <p style="margin:0 0 24px;">
+                          <a href="%s"
+                             style="display:inline-block; background-color:#7A1F35;
+                                    color:#ffffff; text-decoration:none;
+                                    padding:12px 28px; font-family:Georgia,serif;
+                                    font-size:15px;">Confirmar meu voto</a>
+                        </p>
+                        <p style="margin:0 0 16px; font-size:14px; color:#555;">
+                        Se o botão não funcionar, copie e cole este endereço no
+                        navegador:<br>%s</p>
+                        <p style="margin:0; font-size:14px; color:#555;">Cada
+                        e-mail só pode confirmar um voto. Se você não fez esse
+                        voto, pode ignorar esta mensagem com segurança.</p>
+                        """.formatted(escapar(tituloObra), linkConfirmacao, linkConfirmacao));
+    }
+
     private String escapar(String texto) {
         if (texto == null) return "";
         return texto.replace("&", "&amp;")

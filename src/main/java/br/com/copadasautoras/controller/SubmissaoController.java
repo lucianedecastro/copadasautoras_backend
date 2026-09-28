@@ -4,6 +4,7 @@ import br.com.copadasautoras.dto.FaseResponseDTO;
 import br.com.copadasautoras.dto.SubmissaoRequestDTO;
 import br.com.copadasautoras.dto.SubmissaoResponseDTO;
 import br.com.copadasautoras.dto.SubmissaoUpdateDTO;
+import br.com.copadasautoras.dto.VotoPopularConsentimentoDTO;
 import br.com.copadasautoras.entity.FaseCompeticao;
 import br.com.copadasautoras.service.SubmissaoService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -120,6 +121,37 @@ public class SubmissaoController {
 
         return ResponseEntity.ok(
                 submissaoService.editarMinhaSubmissao(dto)
+        );
+    }
+
+    // =========================
+    // 🗳️ TRECHO E CONSENTIMENTO — VOTAÇÃO POPULAR
+    // =========================
+
+    @Operation(
+            summary = "Atualizar trecho e consentimento para o Escolha do Público",
+            description = """
+                    Define se a autora autoriza a divulgação pública de um
+                    trecho da obra, caso a submissão se torne elegível
+                    (semifinalista) à votação popular ("Escolha do Público"),
+                    e registra o trecho selecionado por ela — entre 4.200 e
+                    5.600 caracteres.
+
+                    Pode ser alterado a qualquer momento enquanto a submissão
+                    ainda não for elegível. Uma vez elegível, o trecho já pode
+                    estar público e recebendo voto — por isso fica travado.
+
+                    Requer perfil AUTORA.
+                    """
+    )
+    @PutMapping("/submissoes/minha/voto-popular")
+    @PreAuthorize("hasRole('AUTORA')")
+    public ResponseEntity<SubmissaoResponseDTO> atualizarVotoPopular(
+            @Valid @RequestBody VotoPopularConsentimentoDTO dto
+    ) {
+
+        return ResponseEntity.ok(
+                submissaoService.atualizarConsentimentoVotoPopular(dto)
         );
     }
 

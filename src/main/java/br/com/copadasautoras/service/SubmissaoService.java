@@ -409,6 +409,88 @@ public class SubmissaoService {
     }
 
     // =========================
+    // TRECHO E CONSENTIMENTO — VOTAÇÃO POPULAR
+    // =========================
+
+    /**
+     * Atualiza o consentimento e o trecho liberado para o "Escolha do
+     * Público" na submissão da autora autenticada.
+     *
+     * Diferente de editarMinhaSubmissao(), não usa buscarSubmissaoEditavel():
+     * essa decisão só faz sentido a partir de quando a obra já está em
+     * competição (avançando de fase), não durante a janela SUBMETIDA.
+     *
+     * A trava aqui é outra: enquanto a submissão ainda não é elegível
+     * (elegivelVotoPopular == false), a autora pode mudar de ideia e
+     * reescrever o trecho livremente. Assim que se torna elegível, o
+     * trecho pode já estar público e recebendo voto — travamos para não
+     * permitir troca no meio da votação.
+     */
+    @Transactional
+    public SubmissaoResponseDTO atualizarConsentimentoVotoPopular(
+            VotoPopularConsentimentoDTO dto
+    ) {
+
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        Autora autora = autoraRepository
+                .findByUsuarioEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Autora autenticada não encontrada."
+                        )
+                );
+
+        Submissao submissao = submissaoRepository
+                .findFirstByAutoraId(autora.getId())
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Você ainda não possui uma obra inscrita."
+                        )
+                );
+
+        if (submissao.isElegivelVotoPopular()) {
+            throw new RuntimeException(
+                    "Sua obra já é elegível à votação popular. "
+                            + "O trecho e o consentimento não podem mais ser alterados."
+            );
+        }
+
+        boolean autoriza = Boolean.TRUE.equals(dto.autorizaVotoPopular());
+
+        if (autoriza) {
+
+            String trecho = dto.trechoLiberado();
+
+            if (trecho == null
+                    || trecho.length() < 4200
+                    || trecho.length() > 5600) {
+
+                throw new RuntimeException(
+                        "O trecho deve ter entre 4.200 e 5.600 caracteres."
+                );
+            }
+
+            submissao.setTrechoLiberado(trecho);
+
+        } else {
+
+            // Recuou do consentimento: o trecho antigo não deve
+            // permanecer gravado como se ainda valesse.
+            submissao.setTrechoLiberado(null);
+        }
+
+        submissao.setAutorizaVotoPopular(autoriza);
+
+        submissao = submissaoRepository.save(submissao);
+
+        return mapToResponse(submissao);
+    }
+
+    // =========================
     // SUBSTITUIR ARQUIVOS (Art. 18 §3º)
     // =========================
 
@@ -861,6 +943,20 @@ public class SubmissaoService {
                 StatusSubmissao.CLASSIFICADA
         );
 
+        /**
+         * Escolha do Público: a obra que avança para a SEMIFINAL se
+         * torna elegível à votação popular. Flag de fato, gravado uma
+         * única vez — a obra só cruza essa fronteira uma vez na vida
+         * do chaveamento, e permanece elegível mesmo se for eliminada
+         * na própria SEMIFINAL.
+         */
+        if (proximaFase == FaseCompeticao.SEMIFINAL) {
+
+            vencedora.setElegivelVotoPopular(
+                    true
+            );
+        }
+
         submissaoRepository.save(
                 vencedora
         );
@@ -1160,7 +1256,10 @@ public class SubmissaoService {
                         + "/arquivo-publico"
                         : null,
                 baseUrl
-                        + "/arquivo-completo"
+                        + "/arquivo-completo",
+                submissao.getTrechoLiberado(),
+                submissao.isAutorizaVotoPopular(),
+                submissao.isElegivelVotoPopular()
         );
     }
 

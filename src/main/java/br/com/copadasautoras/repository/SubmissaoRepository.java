@@ -33,6 +33,14 @@ public interface SubmissaoRepository
     );
 
     /**
+     * Busca as submissões elegíveis à votação popular
+     * (semifinalistas), independentemente do resultado
+     * posterior na fase.
+     */
+    List<Submissao> findByElegivelVotoPopularTrue();
+
+
+    /**
      * Regra institucional:
      * uma autora possui apenas uma submissão por evento.
      */

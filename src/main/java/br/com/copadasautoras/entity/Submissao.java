@@ -1,6 +1,7 @@
 package br.com.copadasautoras.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -83,6 +84,44 @@ public class Submissao {
      * registrou a decisão sobre a obra.
      */
     private LocalDateTime dataDecisaoEditorial;
+
+    /**
+     * Trecho selecionado pela própria autora para
+     * divulgação pública em caso de elegibilidade
+     * à votação popular ("Escolha do Público").
+     *
+     * Entre 4.200 e 5.600 caracteres (~3 a 4 laudas).
+     * Pode ser nulo/vazio até a autora preencher —
+     * só é exigido no momento em que ela marca
+     * autorizaVotoPopular = true.
+     */
+    @Size(
+            min = 4200,
+            max = 5600,
+            message = "O trecho deve ter entre 4.200 e 5.600 caracteres"
+    )
+    @Column(name = "trecho_liberado", length = 5600)
+    private String trechoLiberado;
+
+    /**
+     * Consentimento da autora para divulgação pública
+     * do trechoLiberado, caso a obra se torne elegível
+     * (semifinalista). Opt-in explícito, não presumido.
+     */
+    @Column(name = "autoriza_voto_popular", nullable = false)
+    @Builder.Default
+    private boolean autorizaVotoPopular = false;
+
+    /**
+     * Flag de fato: true assim que a submissão atinge
+     * SEMIFINAL pela primeira vez. Nunca é revertido,
+     * independentemente do que aconteça depois com
+     * status/faseAtual (obra eliminada na semifinal
+     * permanece elegível ao voto popular).
+     */
+    @Column(name = "elegivel_voto_popular", nullable = false)
+    @Builder.Default
+    private boolean elegivelVotoPopular = false;
 
     @PrePersist
     public void prePersist() {

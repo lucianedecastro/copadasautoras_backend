@@ -54,7 +54,8 @@ public class MetricasExportService {
             "Relatório agregado, sem dados que identifiquem autoras ou obras. "
           + "As autoras são contadas pelo total acumulado até a geração — o "
           + "cadastro não registra data de inscrição, portanto não é filtrado "
-          + "por período.";
+          + "por período. As excluídas não entram na contagem de inscritas: "
+          + "aparecem à parte, e inscritas mais excluídas formam o total de cadastros.";
 
     // =========================
     // EXCEL (Apache POI)
@@ -67,6 +68,11 @@ public class MetricasExportService {
 
             CellStyle cabecalho = criarEstiloCabecalho(workbook);
             CellStyle rotulo = criarEstiloRotulo(workbook);
+
+            // Inscritas = aprovadas + pendentes + suspensas (excluídas fora).
+            long autorasInscritas = r.autorasAprovadas()
+                    + r.autorasPendentes()
+                    + r.autorasSuspensas();
 
             // ---- Aba Resumo ----
             Sheet resumo = workbook.createSheet("Resumo");
@@ -86,16 +92,18 @@ public class MetricasExportService {
 
             linha = secao(resumo, linha,
                     "Autoras (total acumulado)", cabecalho);
-            linha = kv(resumo, linha, "Total",
-                    String.valueOf(r.totalAutoras()));
             linha = kv(resumo, linha, "Aprovadas",
                     String.valueOf(r.autorasAprovadas()));
             linha = kv(resumo, linha, "Pendentes",
                     String.valueOf(r.autorasPendentes()));
             linha = kv(resumo, linha, "Suspensas",
                     String.valueOf(r.autorasSuspensas()));
-            linha = kv(resumo, linha, "Excluídas",
+            linha = kv(resumo, linha, "Inscritas",
+                    String.valueOf(autorasInscritas));
+            linha = kv(resumo, linha, "Excluídas (fora da conta)",
                     String.valueOf(r.autorasExcluidas()));
+            linha = kv(resumo, linha, "Total de cadastros",
+                    String.valueOf(r.totalAutoras()));
             linha++;
 
             linha = secao(resumo, linha,
@@ -216,6 +224,11 @@ public class MetricasExportService {
             Document doc = new Document(pdf, PageSize.A4);
             doc.setMargins(36, 36, 36, 36);
 
+            // Inscritas = aprovadas + pendentes + suspensas (excluídas fora).
+            long autorasInscritas = r.autorasAprovadas()
+                    + r.autorasPendentes()
+                    + r.autorasSuspensas();
+
             // Cabeçalho
             doc.add(new Paragraph("Copa das Autoras")
                     .setBold()
@@ -241,7 +254,7 @@ public class MetricasExportService {
             // Números grandes
             Table cartoes = new Table(UnitValue.createPercentArray(new float[]{1, 1}))
                     .useAllAvailableWidth();
-            cartoes.addCell(cartaoNumero("Autoras inscritas", r.totalAutoras()));
+            cartoes.addCell(cartaoNumero("Autoras inscritas", autorasInscritas));
             cartoes.addCell(cartaoNumero("Obras no período", r.obrasNoPeriodo()));
             doc.add(cartoes);
 
@@ -250,8 +263,9 @@ public class MetricasExportService {
                     {"Aprovadas", String.valueOf(r.autorasAprovadas())},
                     {"Pendentes", String.valueOf(r.autorasPendentes())},
                     {"Suspensas", String.valueOf(r.autorasSuspensas())},
-                    {"Excluídas", String.valueOf(r.autorasExcluidas())},
-                    {"Total", String.valueOf(r.totalAutoras())},
+                    {"Inscritas", String.valueOf(autorasInscritas)},
+                    {"Excluídas (fora da conta)", String.valueOf(r.autorasExcluidas())},
+                    {"Total de cadastros", String.valueOf(r.totalAutoras())},
             });
 
             // Obras por status
