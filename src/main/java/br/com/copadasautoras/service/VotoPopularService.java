@@ -24,7 +24,7 @@ public class VotoPopularService {
     private final EmailTemplates emailTemplates;
 
     // URL da página de confirmação no frontend. O token vai como parâmetro.
-    @Value("${app.votacao-popular.url:https://www.copadasautoras.com.br/votacao/confirmar.html}")
+    @Value("${app.votacao-popular.url:https://www.copadasautoras.com.br/confirmar-voto.html}")
     private String baseConfirmacaoUrl;
 
     @Transactional
