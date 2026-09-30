@@ -7,10 +7,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
@@ -49,6 +53,7 @@ public class AutoraController {
                     - biografia
                     - site
                     - rede social
+                    - localização (estado e cidade, sempre juntos)
                     
                     Não permite alterar:
                     - nome
@@ -151,6 +156,83 @@ public class AutoraController {
     }
 
     @Operation(
+            summary = "Relatório de localização das autoras (admin)",
+            description = """
+                    Contagem agregada de autoras ativas (aprovadas e em
+                    análise) por estado e por cidade, mais a cobertura do
+                    dado (quantas já informaram a localização). Nunca
+                    devolve dados individuais.
+                    """
+    )
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/admin/relatorio/localizacao")
+    public ResponseEntity<RelatorioLocalizacaoDTO>
+    relatorioLocalizacao() {
+
+        return ResponseEntity.ok(
+                autoraService.relatorioLocalizacao()
+        );
+    }
+
+    // =====================================================
+    // EXPORTAÇÃO (ADMIN)
+    // =====================================================
+
+    @Operation(
+            summary = "Exportar autoras em Excel (admin)",
+            description = """
+                    Gera .xlsx do recorte filtrado por status (sem status =
+                    todas). Abas: resumo, lista de autoras (com nome
+                    completo e e-mail — uso interno), por estado, por região
+                    e por cidade.
+                    """
+    )
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/admin/exportar/excel")
+    public ResponseEntity<byte[]> exportarExcel(
+            @RequestParam(required = false) StatusAutora status
+    ) {
+
+        byte[] conteudo = autoraService.exportarExcel(status);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + nomeArquivo("xlsx") + "\"")
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(conteudo);
+    }
+
+    @Operation(
+            summary = "Exportar autoras em PDF com mapa (admin)",
+            description = """
+                    Gera .pdf do recorte filtrado por status (sem status =
+                    todas): cartões, mapa do Brasil, números por região,
+                    estado e cidade. Com incluirLista=true (padrão) traz
+                    também a lista de autoras (nome de exibição, status,
+                    UF, cidade); com incluirLista=false sai só o agregado,
+                    versão indicada para apresentar a patrocinadores.
+                    """
+    )
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/admin/exportar/pdf")
+    public ResponseEntity<byte[]> exportarPdf(
+            @RequestParam(required = false) StatusAutora status,
+            @RequestParam(defaultValue = "true") boolean incluirLista
+    ) {
+
+        byte[] conteudo = autoraService.exportarPdf(status, incluirLista);
+
+        String base = incluirLista ? "autoras" : "autoras-mapa";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + nomeArquivo(base, "pdf") + "\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(conteudo);
+    }
+
+    @Operation(
             summary = "Listar autoras por status",
             description = "Lista autoras por status institucional."
     )
@@ -235,5 +317,15 @@ public class AutoraController {
                         request.justificativa()
                 )
         );
+    }
+
+    private String nomeArquivo(String extensao) {
+        return nomeArquivo("autoras", extensao);
+    }
+
+    private String nomeArquivo(String base, String extensao) {
+        String data = LocalDate.now()
+                .format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        return base + "-" + data + "." + extensao;
     }
 }

@@ -49,6 +49,22 @@ public class Autora {
     private String site;
 
     /**
+     * UF da autora (sigla de 2 letras, ex.: "SP").
+     *
+     * Usada só para estatísticas agregadas da competição — nunca aparece
+     * no perfil público. NULLABLE de propósito (migration V17): as autoras
+     * cadastradas antes dela ficam sem localização até preencherem.
+     */
+    @Column(name = "estado", length = 2)
+    private String estado;
+
+    /**
+     * Cidade da autora (texto livre). Mesmo uso e mesma regra do estado.
+     */
+    @Column(name = "cidade", length = 120)
+    private String cidade;
+
+    /**
      * Status institucional da autora na plataforma.
      */
     @Enumerated(EnumType.STRING)
@@ -113,6 +129,11 @@ public class Autora {
      * O perfil só é considerado completo quando os campos obrigatórios
      * estão preenchidos: nome completo, nome de exibição, biografia e
      * link de rede social. O site é opcional e não entra na regra.
+     *
+     * Estado e cidade também ficam DE FORA, de propósito: a localização é
+     * dado estatístico, não critério de aprovação. Se entrassem aqui, toda
+     * autora já aprovada passaria a constar como incompleta e mexeria na
+     * lógica de suspensão/re-análise.
      *
      * Usado como trava institucional na aprovação da autora — se a regra
      * mudar, muda só aqui.

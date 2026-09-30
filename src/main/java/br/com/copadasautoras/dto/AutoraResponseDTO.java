@@ -37,7 +37,16 @@ public record AutoraResponseDTO(
          * autora usa isso pra escolher a mensagem genérica certa. NULL nas
          * autoras já excluídas antes da V15.
          */
-        MotivoExclusao motivoExclusao
+        MotivoExclusao motivoExclusao,
+
+        /**
+         * Localização informada pela autora (UF e cidade). NULL enquanto
+         * ela não preencher. O painel usa isso pra decidir se mostra o
+         * aviso de "informar localização".
+         */
+        String estado,
+
+        String cidade
 ) {
 
     /**
@@ -66,6 +75,8 @@ public record AutoraResponseDTO(
                 redesSociais,
                 statusAutora,
                 false,
+                null,
+                null,
                 null
         );
     }
@@ -97,6 +108,42 @@ public record AutoraResponseDTO(
                 redesSociais,
                 statusAutora,
                 perfilCompleto,
+                null,
+                null,
+                null
+        );
+    }
+
+    /**
+     * Construtor de compatibilidade (10 campos).
+     *
+     * É o canônico de antes da V17: mantém funcionando quem cria o DTO
+     * sem localização (estado e cidade ficam null).
+     */
+    public AutoraResponseDTO(
+            Long id,
+            String nome,
+            String nomeExibicao,
+            String email,
+            String biografia,
+            String site,
+            String redesSociais,
+            StatusAutora statusAutora,
+            boolean perfilCompleto,
+            MotivoExclusao motivoExclusao
+    ) {
+        this(
+                id,
+                nome,
+                nomeExibicao,
+                email,
+                biografia,
+                site,
+                redesSociais,
+                statusAutora,
+                perfilCompleto,
+                motivoExclusao,
+                null,
                 null
         );
     }

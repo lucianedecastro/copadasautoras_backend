@@ -29,6 +29,14 @@ public class AutoraService {
     private final UsuarioRepository usuarioRepository;
     private final SubmissaoRepository submissaoRepository;
     private final AuditoriaService auditoriaService;
+    private final AutoraExportService autoraExportService;
+
+    /**
+     * Quem entra nas estatísticas de localização: autoras ativas
+     * (aprovadas + em análise). Suspensas e excluídas ficam de fora.
+     */
+    private static final List<StatusAutora> STATUS_NO_RELATORIO =
+            List.of(StatusAutora.APROVADA, StatusAutora.PENDENTE);
 
     /**
      * Busca o perfil privado da autora autenticada.
@@ -69,6 +77,17 @@ public class AutoraService {
         autora.setBiografia(request.biografia());
         autora.setSite(request.site());
         autora.setRedesSociais(request.redesSociais());
+
+        // Localização: só grava quando vêm os DOIS (o DTO já barra meia
+        // localização). Se não vier nada, mantém o que já estava salvo —
+        // assim uma tela antiga em cache, que não conhece esses campos,
+        // não apaga a localização de quem já informou.
+        String estado = textoOuNulo(request.estado());
+        String cidade = textoOuNulo(request.cidade());
+        if (estado != null && cidade != null) {
+            autora.setEstado(estado);
+            autora.setCidade(cidade);
+        }
 
         boolean trocouRedeSocial =
                 !Objects.equals(
@@ -187,6 +206,71 @@ public class AutoraService {
         return toResponseDTO(
                 buscarAutoraPorId(autoraId)
         );
+    }
+
+    /**
+     * Relatório agregado de localização — uso administrativo.
+     *
+     * Devolve só contagens (por UF, por cidade e a cobertura do dado),
+     * nunca dados de uma autora específica.
+     */
+    @Transactional(readOnly = true)
+    public RelatorioLocalizacaoDTO relatorioLocalizacao() {
+
+        return new RelatorioLocalizacaoDTO(
+                autoraRepository.countByStatusAutoraIn(
+                        STATUS_NO_RELATORIO
+                ),
+                autoraRepository.countByStatusAutoraInAndEstadoIsNotNull(
+                        STATUS_NO_RELATORIO
+                ),
+                autoraRepository.contarPorEstado(
+                        STATUS_NO_RELATORIO
+                ),
+                autoraRepository.contarPorCidade(
+                        STATUS_NO_RELATORIO
+                )
+        );
+    }
+
+    // =========================
+    // ADMIN — EXPORTAÇÃO (RELATÓRIO)
+    // =========================
+
+    /**
+     * Excel de autoras no recorte do filtro do painel (status nulo = todas).
+     * Uso administrativo: a lista traz nome completo e e-mail.
+     */
+    @Transactional(readOnly = true)
+    public byte[] exportarExcel(StatusAutora status) {
+
+        return autoraExportService.gerarExcel(
+                buscarParaExportar(status),
+                status
+        );
+    }
+
+    /**
+     * PDF de autoras (com o mapa) no recorte do filtro do painel.
+     *
+     * incluirLista=false gera a versão só com números agregados
+     * (a que serve para apresentação a patrocinadores).
+     */
+    @Transactional(readOnly = true)
+    public byte[] exportarPdf(StatusAutora status, boolean incluirLista) {
+
+        return autoraExportService.gerarPdf(
+                buscarParaExportar(status),
+                status,
+                incluirLista
+        );
+    }
+
+    private List<Autora> buscarParaExportar(StatusAutora status) {
+
+        return status != null
+                ? autoraRepository.findByStatusAutora(status)
+                : autoraRepository.findAll();
     }
 
     /**
@@ -431,6 +515,20 @@ public class AutoraService {
         return valor == null ? null : valor.trim();
     }
 
+    /**
+     * Trim null-safe que devolve null para texto vazio ou só espaços.
+     */
+    private static String textoOuNulo(String valor) {
+
+        if (valor == null) {
+            return null;
+        }
+
+        String texto = valor.trim();
+
+        return texto.isEmpty() ? null : texto;
+    }
+
     private AutoraResponseDTO toResponseDTO(
             Autora autora
     ) {
@@ -445,7 +543,9 @@ public class AutoraService {
                 autora.getRedesSociais(),
                 autora.getStatusAutora(),
                 autora.isPerfilCompleto(),
-                autora.getMotivoExclusao()
+                autora.getMotivoExclusao(),
+                autora.getEstado(),
+                autora.getCidade()
         );
     }
 }
