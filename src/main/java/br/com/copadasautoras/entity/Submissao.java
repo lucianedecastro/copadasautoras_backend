@@ -123,6 +123,15 @@ public class Submissao {
     @Builder.Default
     private boolean elegivelVotoPopular = false;
 
+    /**
+     * Selo "Escolha do Público". Aplicado pelo admin ao encerrar a
+     * votação popular, na obra mais votada (ou na escolhida por ele em
+     * caso de empate). Removido se a votação for reaberta.
+     */
+    @Column(name = "selo_escolha_publico", nullable = false)
+    @Builder.Default
+    private boolean seloEscolhaPublico = false;
+
     @PrePersist
     public void prePersist() {
 
@@ -142,4 +151,4 @@ public class Submissao {
          * compor a edição da Copa.
          */
     }
-}
+}

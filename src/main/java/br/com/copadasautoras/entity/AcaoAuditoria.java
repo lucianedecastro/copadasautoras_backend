@@ -24,5 +24,10 @@ public enum AcaoAuditoria {
     // Obra — banca
     CLASSIFICADA,
     ELIMINADA,
-    VOTO_FINAL
+    VOTO_FINAL,
+
+    // Escolha do Público (votação popular)
+    VOTACAO_POPULAR_ENCERRADA,
+    SELO_ESCOLHA_PUBLICO,
+    VOTACAO_POPULAR_REABERTA
 }

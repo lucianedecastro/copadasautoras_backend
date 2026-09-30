@@ -5,6 +5,7 @@ import br.com.copadasautoras.dto.ChaveamentoPublicoResponseDTO;
 import br.com.copadasautoras.dto.ConfrontoPublicoDTO;
 import br.com.copadasautoras.dto.GrupoPublicoDTO;
 import br.com.copadasautoras.dto.ObraPublicaDTO;
+import br.com.copadasautoras.dto.SeloEscolhaPublicoDTO;
 import br.com.copadasautoras.entity.Competicao;
 import br.com.copadasautoras.entity.Confronto;
 import br.com.copadasautoras.entity.FaseCompeticao;
@@ -59,6 +60,7 @@ public class PublicoService {
                     List.of(),
                     List.of(),
                     List.of(),
+                    null,
                     null
             );
         }
@@ -70,7 +72,8 @@ public class PublicoService {
                 montarConfrontos(FaseCompeticao.QUARTAS),
                 montarConfrontos(FaseCompeticao.SEMIFINAL),
                 montarFinalistas(),
-                montarCampea()
+                montarCampea(),
+                montarSeloEscolhaPublico(competicao)
         );
     }
 
@@ -187,6 +190,29 @@ public class PublicoService {
                 .map(s -> new CampeaPublicaDTO(
                         s.getTitulo(),
                         s.getCategoria(),
+                        s.getAutora() != null
+                                ? s.getAutora().getNomeExibicao()
+                                : null
+                ))
+                .orElse(null);
+    }
+
+    // Só aparece depois que o admin encerra o Escolha do Público.
+    private SeloEscolhaPublicoDTO montarSeloEscolhaPublico(
+            Competicao competicao
+    ) {
+
+        if (!competicao.isVotacaoPopularEncerrada()) {
+            return null;
+        }
+
+        return submissaoRepository
+                .findBySeloEscolhaPublicoTrue()
+                .stream()
+                .findFirst()
+                .map(s -> new SeloEscolhaPublicoDTO(
+                        s.getId(),
+                        s.getTitulo(),
                         s.getAutora() != null
                                 ? s.getAutora().getNomeExibicao()
                                 : null

@@ -16,6 +16,9 @@ public record ChaveamentoPublicoResponseDTO(
         List<ObraPublicaDTO> finalistas,
 
         // null até o admin revelar a campeã
-        CampeaPublicaDTO campea
+        CampeaPublicaDTO campea,
+
+        // null até o admin encerrar o Escolha do Público
+        SeloEscolhaPublicoDTO seloEscolhaPublico
 
 ) {}

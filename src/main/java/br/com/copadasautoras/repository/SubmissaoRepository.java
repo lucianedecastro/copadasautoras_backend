@@ -39,6 +39,19 @@ public interface SubmissaoRepository
      */
     List<Submissao> findByElegivelVotoPopularTrue();
 
+    /**
+     * Obras que de fato disputam o "Escolha do Público": semifinalistas
+     * que autorizaram a divulgação do trecho. Semifinalista sem
+     * autorização continua elegível (flag de fato), mas fica fora da
+     * votação.
+     */
+    List<Submissao> findByElegivelVotoPopularTrueAndAutorizaVotoPopularTrue();
+
+    /**
+     * Obra(s) com o selo "Escolha do Público".
+     */
+    List<Submissao> findBySeloEscolhaPublicoTrue();
+
 
     /**
      * Regra institucional:

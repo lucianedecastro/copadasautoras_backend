@@ -3,6 +3,8 @@ package br.com.copadasautoras.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "competicao")
 @Getter
@@ -30,6 +32,22 @@ public class Competicao {
     @Column(name = "chaveamento_publicado", nullable = false)
     private Boolean chaveamentoPublicado;
 
+    /**
+     * Votação popular ("Escolha do Público") encerrada pelo admin.
+     * Enquanto false, a votação aceita votos (desde que haja obras
+     * elegíveis). Ao encerrar, não entram votos novos e os pendentes
+     * deixam de poder ser confirmados. O admin pode reabrir.
+     */
+    @Column(name = "votacao_popular_encerrada", nullable = false)
+    @Builder.Default
+    private boolean votacaoPopularEncerrada = false;
+
+    /**
+     * Quando a votação popular foi encerrada (nulo se aberta).
+     */
+    @Column(name = "votacao_popular_encerrada_em")
+    private LocalDateTime votacaoPopularEncerradaEm;
+
     @PrePersist
     public void prePersist() {
         if (faseAtual == null) {
@@ -42,4 +60,4 @@ public class Competicao {
             chaveamentoPublicado = false;
         }
     }
-}
+}

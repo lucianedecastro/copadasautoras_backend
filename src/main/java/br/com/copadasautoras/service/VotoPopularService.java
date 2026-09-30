@@ -2,6 +2,8 @@ package br.com.copadasautoras.service;
 
 import br.com.copadasautoras.entity.Submissao;
 import br.com.copadasautoras.entity.VotoPopular;
+import br.com.copadasautoras.entity.Competicao;
+import br.com.copadasautoras.repository.CompeticaoRepository;
 import br.com.copadasautoras.repository.SubmissaoRepository;
 import br.com.copadasautoras.repository.VotoPopularRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ public class VotoPopularService {
 
     private final SubmissaoRepository submissaoRepository;
     private final VotoPopularRepository votoPopularRepository;
+    private final CompeticaoRepository competicaoRepository;
     private final EmailService emailService;
     private final EmailTemplates emailTemplates;
 
@@ -27,10 +30,13 @@ public class VotoPopularService {
     @Transactional
     public void solicitarVoto(Long submissaoId, String email) {
 
+        exigirVotacaoAberta();
+
         Submissao submissao = submissaoRepository.findById(submissaoId)
                 .orElseThrow(() -> new RuntimeException("Obra não encontrada."));
 
-        if (!submissao.isElegivelVotoPopular()) {
+        if (!submissao.isElegivelVotoPopular()
+                || !submissao.isAutorizaVotoPopular()) {
             throw new RuntimeException(
                     "Esta obra não está elegível para a votação popular."
             );
@@ -61,6 +67,8 @@ public class VotoPopularService {
     @Transactional
     public void confirmarVoto(String token) {
 
+        exigirVotacaoAberta();
+
         VotoPopular voto = votoPopularRepository.findByToken(token)
                 .orElseThrow(() -> new RuntimeException("Link de confirmação inválido."));
 
@@ -81,5 +89,21 @@ public class VotoPopularService {
         voto.setDataConfirmacao(java.time.LocalDateTime.now());
 
         votoPopularRepository.save(voto);
+    }
+
+    // Depois que o admin encerra, nem novos pedidos nem confirmações
+    // pendentes contam: o resultado fica congelado.
+    private void exigirVotacaoAberta() {
+        boolean encerrada = competicaoRepository.findAll()
+                .stream()
+                .findFirst()
+                .map(Competicao::isVotacaoPopularEncerrada)
+                .orElse(false);
+
+        if (encerrada) {
+            throw new RuntimeException(
+                    "A votação do Escolha do Público está encerrada."
+            );
+        }
     }
 }

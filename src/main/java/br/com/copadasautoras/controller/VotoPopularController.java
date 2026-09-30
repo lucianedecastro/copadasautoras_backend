@@ -1,8 +1,10 @@
 package br.com.copadasautoras.controller;
 
+import br.com.copadasautoras.dto.SeloEscolhaPublicoDTO;
 import br.com.copadasautoras.dto.VotoPopularElegivelDTO;
 import br.com.copadasautoras.dto.VotoPopularRequestDTO;
 import br.com.copadasautoras.entity.Submissao;
+import br.com.copadasautoras.repository.CompeticaoRepository;
 import br.com.copadasautoras.repository.SubmissaoRepository;
 import br.com.copadasautoras.service.VotoPopularService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,6 +22,7 @@ public class VotoPopularController {
 
     private final VotoPopularService votoPopularService;
     private final SubmissaoRepository submissaoRepository;
+    private final CompeticaoRepository competicaoRepository;
 
     // =========================
     // 🗳️ VOTAÇÃO POPULAR — /publico/votacao-popular
@@ -77,8 +80,9 @@ public class VotoPopularController {
     @Operation(
             summary = "Listar obras elegíveis ao Escolha do Público",
             description = """
-                    Retorna as obras semifinalistas com o trecho liberado
-                    pela autora, para leitura e votação pública.
+                    Retorna as obras semifinalistas que autorizaram o voto
+                    popular, com o trecho liberado pela autora, para leitura
+                    e votação pública.
                     """
     )
     @GetMapping("/publico/votacao-popular/elegiveis")
@@ -86,12 +90,49 @@ public class VotoPopularController {
 
         List<VotoPopularElegivelDTO> resultado =
                 submissaoRepository
-                        .findByElegivelVotoPopularTrue()
+                        .findByElegivelVotoPopularTrueAndAutorizaVotoPopularTrue()
                         .stream()
                         .map(this::paraElegivelDTO)
                         .toList();
 
         return ResponseEntity.ok(resultado);
+    }
+
+    @Operation(
+            summary = "Estado do Escolha do Público e obra com selo",
+            description = """
+                    Informa se a votação foi encerrada e, se sim, qual obra
+                    recebeu o selo Escolha do Público. Enquanto a votação
+                    estiver aberta, vencedora vem nula.
+                    """
+    )
+    @GetMapping("/publico/votacao-popular/selo")
+    public ResponseEntity<Map<String, Object>> selo() {
+
+        boolean encerrada = competicaoRepository.findAll()
+                .stream()
+                .findFirst()
+                .map(c -> c.isVotacaoPopularEncerrada())
+                .orElse(false);
+
+        SeloEscolhaPublicoDTO vencedora = !encerrada
+                ? null
+                : submissaoRepository.findBySeloEscolhaPublicoTrue()
+                .stream()
+                .findFirst()
+                .map(s -> new SeloEscolhaPublicoDTO(
+                        s.getId(),
+                        s.getTitulo(),
+                        s.getAutora() != null
+                                ? s.getAutora().getNomeExibicao()
+                                : null))
+                .orElse(null);
+
+        Map<String, Object> corpo = new java.util.HashMap<>();
+        corpo.put("votacaoEncerrada", encerrada);
+        corpo.put("vencedora", vencedora);
+
+        return ResponseEntity.ok(corpo);
     }
 
     private VotoPopularElegivelDTO paraElegivelDTO(Submissao submissao) {
